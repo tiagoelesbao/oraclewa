@@ -1,0 +1,245 @@
+version: '3.8'
+
+# ========================================
+# ORACLEWA SAAS - DESENVOLVIMENTO LOCAL
+# ========================================
+
+services:
+  # ========================================
+  # API Principal
+  # ========================================
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: oraclewa-api
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=oraclewa_dev
+      - DB_USER=oraclewa
+      - DB_PASS=oraclewa_dev_pass
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - LOG_LEVEL=debug
+    ports:
+      - "3000:3000"
+      - "9230:9229" # Debug port
+    volumes:
+      - ./apps/api/src:/app/src
+      - ./config:/app/config
+      - ./clients:/app/clients
+      - ./logs/api:/app/logs
+    networks:
+      - oraclewa-dev
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+    command: npm run dev
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ========================================
+  # Dashboard (Futuro)
+  # ========================================
+  dashboard:
+    build:
+      context: ./apps/dashboard
+      dockerfile: Dockerfile
+    container_name: oraclewa-dashboard
+    environment:
+      - NODE_ENV=development
+      - REACT_APP_API_URL=http://localhost:3000
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./apps/dashboard/src:/app/src
+    networks:
+      - oraclewa-dev
+    depends_on:
+      - api
+    restart: unless-stopped
+    profiles:
+      - dashboard
+
+  # ========================================
+  # Banco de Dados Principal
+  # ========================================
+  postgres:
+    image: postgres:14-alpine
+    container_name: oraclewa-postgres
+    environment:
+      - POSTGRES_USER=oraclewa
+      - POSTGRES_PASSWORD=oraclewa_dev_pass
+      - POSTGRES_DB=oraclewa_dev
+      - POSTGRES_MULTIPLE_DATABASES=oraclewa_dev,imperio_recovery,imperio_broadcast
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/setup/init-multi-db.sh:/docker-entrypoint-initdb.d/init-multi-db.sh
+    networks:
+      - oraclewa-dev
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U oraclewa"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ========================================
+  # Redis
+  # ========================================
+  redis:
+    image: redis:7-alpine
+    container_name: oraclewa-redis
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - oraclewa-dev
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ========================================
+  # Monitoring - Prometheus
+  # ========================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: oraclewa-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infrastructure/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    networks:
+      - oraclewa-dev
+    restart: unless-stopped
+    profiles:
+      - monitoring
+
+  # ========================================
+  # Monitoring - Grafana
+  # ========================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: oraclewa-grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_SERVER_ROOT_URL=http://localhost:3100
+    ports:
+      - "3100:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infrastructure/monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+    networks:
+      - oraclewa-dev
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    profiles:
+      - monitoring
+
+  # ========================================
+  # Logs - ELK Stack (Opcional)
+  # ========================================
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.10.0
+    container_name: oraclewa-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - oraclewa-dev
+    restart: unless-stopped
+    profiles:
+      - logging
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.10.0
+    container_name: oraclewa-kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    networks:
+      - oraclewa-dev
+    depends_on:
+      - elasticsearch
+    restart: unless-stopped
+    profiles:
+      - logging
+
+  # ========================================
+  # Ferramentas de Desenvolvimento
+  # ========================================
+  
+  # Adminer para administração de banco
+  adminer:
+    image: adminer:latest
+    container_name: oraclewa-adminer
+    ports:
+      - "8080:8080"
+    environment:
+      - ADMINER_DEFAULT_SERVER=postgres
+    networks:
+      - oraclewa-dev
+    restart: unless-stopped
+    profiles:
+      - tools
+
+  # Redis Commander para administração Redis
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: oraclewa-redis-commander
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - "8081:8081"
+    networks:
+      - oraclewa-dev
+    depends_on:
+      - redis
+    restart: unless-stopped
+    profiles:
+      - tools
+
+# ========================================
+# Networks
+# ========================================
+networks:
+  oraclewa-dev:
+    name: oraclewa-dev
+    driver: bridge
+
+# ========================================
+# Volumes
+# ========================================
+volumes:
+  postgres_data:
+    name: oraclewa_postgres_data
+  redis_data:
+    name: oraclewa_redis_data
+  prometheus_data:
+    name: oraclewa_prometheus_data
+  grafana_data:
+    name: oraclewa_grafana_data
+  elasticsearch_data:
+    name: oraclewa_elasticsearch_data

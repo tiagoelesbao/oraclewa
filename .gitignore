@@ -1,0 +1,350 @@
+# ================================================
+# ORACLEWA SAAS - GIT IGNORE
+# ================================================
+
+# ========================================
+# Node.js
+# ========================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# ========================================
+# Environment Variables
+# ========================================
+.env
+.env.local
+.env.development
+.env.staging
+.env.production
+.env.*.local
+
+# Client-specific env files (sensitive data)
+clients/*/config.env
+clients/*/credentials.txt
+clients/*/.env
+clients/*/secrets/
+
+# ========================================
+# Logs
+# ========================================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Runtime logs
+logs/
+*.log
+logs/api/*.log
+logs/clients/*/
+logs/system/*.log
+
+# ========================================
+# Database
+# ========================================
+*.sqlite
+*.sqlite3
+*.db
+data/backups/*.sql
+data/backups/*.dump
+data/exports/*.csv
+data/migrations/temp/
+
+# ========================================
+# Redis Dumps
+# ========================================
+dump.rdb
+*.rdb
+
+# ========================================
+# Docker
+# ========================================
+.dockerignore.local
+docker-compose.override.yml
+docker-compose.*.override.yml
+
+# ========================================
+# IDE & Editors
+# ========================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Vim
+*.swp
+*.swo
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# ========================================
+# OS Generated Files
+# ========================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msm
+*.msp
+*.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# ========================================
+# Temporary Files
+# ========================================
+tmp/
+temp/
+*.tmp
+*.temp
+*.cache
+.cache/
+
+# ========================================
+# Build Outputs
+# ========================================
+dist/
+build/
+out/
+coverage/
+.nyc_output/
+
+# ========================================
+# Test Files
+# ========================================
+test-results/
+test-reports/
+coverage/
+.nyc_output/
+*.spec.js.snap
+*.test.js.snap
+
+# ========================================
+# Security & Credentials
+# ========================================
+*.pem
+*.key
+*.crt
+*.csr
+*.p12
+*.pfx
+
+# JWT secrets
+jwt-*.key
+*.jwk
+
+# API keys and tokens
+api-keys.txt
+tokens.txt
+credentials.json
+service-account.json
+
+# Evolution API keys
+evolution-*.key
+evolution-credentials.txt
+
+# WhatsApp sessions
+sessions/
+qr-codes/
+*.session
+
+# ========================================
+# Backup Files
+# ========================================
+data/backups/*.sql
+data/backups/*.tar.gz
+data/backups/*.zip
+backup-*.tar.gz
+backup-*.sql
+backup-*.dump
+
+# Migration reports
+migration_report_*.md
+migration_report_*.json
+
+# ========================================
+# Client Data (Sensitive)
+# ========================================
+clients/*/instances/
+clients/*/database/data/
+clients/*/logs/
+clients/*/backups/
+clients/*/exports/
+clients/*/uploads/
+
+# Lead files (PII)
+clients/*/leads/
+leads/*.csv
+data/seeds/*.csv
+*.leads
+
+# ========================================
+# Monitoring & Analytics
+# ========================================
+analytics-reports/
+metrics-exports/
+performance-logs/
+
+# ========================================
+# Cloud & Infrastructure
+# ========================================
+# Terraform
+infrastructure/terraform/**/*.tfstate
+infrastructure/terraform/**/*.tfstate.backup
+infrastructure/terraform/**/*.tfvars
+infrastructure/terraform/**/.terraform/
+
+# Kubernetes secrets
+infrastructure/kubernetes/secrets/
+*.kubeconfig
+
+# Docker volumes data
+docker-volumes/
+
+# ========================================
+# Development & Debug
+# ========================================
+.vscode/launch.json
+.idea/workspace.xml
+debug.log
+debug-*.log
+
+# Hot reload
+.hot-update.*
+
+# ========================================
+# Package Managers
+# ========================================
+# Yarn
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# PNPM
+.pnpm-debug.log*
+.pnpm-lock.yaml
+
+# ========================================
+# Miscellaneous
+# ========================================
+# Runtime configuration
+runtime-config.json
+
+# Process IDs
+*.pid
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+.coverage/
+
+# Dependency directories
+jspm_packages/
+
+# Optional npm cache directory
+.npm
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# parcel-bundler cache (https://parceljs.org/)
+.parcel-cache
+
+# next.js build output
+.next
+
+# nuxt.js build output
+.nuxt
+
+# vuepress build output
+.vuepress/dist
+
+# Serverless directories
+.serverless
+
+# DynamoDB Local files
+.dynamodb
+
+# ========================================
+# Project-Specific
+# ========================================
+# Old system artifacts
+CHAVES_GERADAS.txt
+HETZNER_ACCESS.md
+RAILWAY_ENV_SAFE.txt
+*-logo-base64.txt
+manual-recovery.txt
+exemplo-clientes.csv
+emergency-recovery.md
+
+# Temporary scripts
+fix-*.sh
+temp-*.js
+test-*.js
+
+# Generated files
+docker-compose.*.generated.yml
+config.generated.json
+
+# Client setup artifacts
+setup_evolution_*.sh
+credentials_*.txt
