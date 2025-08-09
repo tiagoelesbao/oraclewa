@@ -1,0 +1,40 @@
+{
+  "resumo": {
+    "totalLeads": 1,
+    "mensagensEnviadas": 1,
+    "sucessos": 1,
+    "falhas": 0,
+    "taxaSuccesso": "100.0%",
+    "duracaoMinutos": "0.0",
+    "velocidadeReal": "1287.7 msgs/hora"
+  },
+  "metricas": {
+    "conversaoEsperada": "0 leads interessados",
+    "receitaEstimada": "R$ 0.10",
+    "custoOperacional": "R$ 0.05",
+    "lucroEstimado": "R$ 0.05"
+  },
+  "proximosPassos": {
+    "otimizacao": "Manter ritmo",
+    "escalonamento": "Pode escalar para 1000+ leads",
+    "investimento": "Testar mais antes de investir"
+  },
+  "detalhes": {
+    "inicio": "2025-08-07T14:57:01.776454",
+    "fim": "2025-08-07T14:57:04.572126",
+    "instancia": "broadcast-imperio",
+    "totalTemplates": 4
+  },
+  "mensagens_enviadas": [
+    {
+      "id": 1,
+      "nome": "Tiago",
+      "telefone": "5511959761948",
+      "timestamp": "2025-08-07T14:57:01.776495",
+      "template_usado": 2,
+      "status": "sucesso",
+      "response_time": 2794.1572666168213,
+      "message_id": "3EB040423AE831E9E34A32C549E17BE5AF63CCE0"
+    }
+  ]
+}
