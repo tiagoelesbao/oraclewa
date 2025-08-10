@@ -9,7 +9,7 @@
     "npm": ">=8.0.0"
   },
   "scripts": {
-    "start": "node apps/api/src/index-super-simple.js",
+    "start": "node apps/api/src/index-super-simple-fixed.js",
     "dev": "nodemon apps/api/src/index.js",
     "dev:api": "cd apps/api && npm run dev",
     "dev:dashboard": "cd apps/dashboard && npm run dev",
