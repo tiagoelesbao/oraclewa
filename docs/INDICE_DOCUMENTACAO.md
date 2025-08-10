@@ -122,6 +122,7 @@
 ## 🔗 LINKS E RECURSOS
 
 ### 🖥️ **SISTEMAS EM PRODUÇÃO**
+- **GitHub:** https://github.com/tiagoelesbao/oraclewa (Repositório)
 - **Hetzner:** http://128.140.7.154:8080 (Evolution API)
 - **Railway:** https://railway.app/project/oraclewa-imperio (Aplicação)  
 - **Sistema:** https://oraclewa-imperio-production.up.railway.app (Webhooks)

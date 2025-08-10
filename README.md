@@ -1,8 +1,8 @@
 # 🚀 OracleWA SaaS - WhatsApp Automation Platform
 
-[![Version](https://img.shields.io/badge/version-3.0.0-blue.svg)](https://github.com/oraclewa/saas)
+[![Version](https://img.shields.io/badge/version-3.0.0-blue.svg)](https://github.com/tiagoelesbao/oraclewa)
 [![License](https://img.shields.io/badge/license-Commercial-green.svg)](./LICENSE)
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/oraclewa/saas/actions)
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/tiagoelesbao/oraclewa/actions)
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://hub.docker.com/r/oraclewa/api)
 
 > **Enterprise-grade WhatsApp automation platform with multi-tenant architecture, advanced anti-ban strategies, and unlimited scalability.**
@@ -62,8 +62,8 @@ graph TB
 
 ```bash
 # Clone the repository
-git clone https://github.com/oraclewa/saas.git
-cd saas
+git clone https://github.com/tiagoelesbao/oraclewa.git
+cd oraclewa
 
 # Install dependencies
 npm install
