@@ -89,12 +89,17 @@ docker-compose up -d
 
 ## 📚 Documentation
 
-- [📖 Getting Started](./docs/getting-started.md)
-- [🏗️ Architecture](./docs/architecture/overview.md)
-- [🔧 API Reference](./docs/api/endpoints.md)
-- [🚀 Deployment](./docs/deployment/docker.md)
-- [👥 Client Management](./docs/clients/onboarding.md)
-- [🛡️ Security](./docs/architecture/security.md)
+### 🏆 **DOCUMENTOS PRINCIPAIS**
+- 🎯 **[docs/INDICE_DOCUMENTACAO.md](./docs/INDICE_DOCUMENTACAO.md)** - **NAVEGAÇÃO COMPLETA** por perfil
+- 🏆 **[docs/README_SISTEMA_COMPLETO.md](./docs/README_SISTEMA_COMPLETO.md)** - **DOCUMENTO MASTER** - Visão 360°
+
+### 📖 **GUIAS POR CATEGORIA**
+- 🔧 **[docs/GUIA_OPERACIONAL.md](./docs/GUIA_OPERACIONAL.md)** - Como usar sistema completo
+- 📡 **[docs/GUIA_COMPLETO_BROADCAST.md](./docs/GUIA_COMPLETO_BROADCAST.md)** - Sistema broadcast massa
+- 🚨 **[docs/TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md)** - Solução todos problemas  
+- 🏗️ **[docs/architecture/ARQUITETURA_MULTI_TENANT.md](./docs/architecture/ARQUITETURA_MULTI_TENANT.md)** - Arquitetura v3.0
+- 📈 **[docs/PLANEJAMENTO_ESTRATEGICO.md](./docs/PLANEJAMENTO_ESTRATEGICO.md)** - Roadmap futuro
+- 📜 **[docs/HISTORICO.md](./docs/HISTORICO.md)** - Changelog completo
 
 ## 🎛️ Client Management
 

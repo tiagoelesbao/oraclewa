@@ -1,0 +1,52 @@
+{
+  "name": "Configuração Z-API - Império Prêmios",
+  "description": "Configuração para instância Z-API de webhooks alternativa",
+  "status": "pending_setup",
+  "instance": {
+    "name": "imperio-zapi",
+    "type": "webhook",
+    "cost": 99,
+    "currency": "BRL",
+    "billing": "monthly"
+  },
+  "credentials": {
+    "clientToken": "ADICIONAR_TOKEN_AQUI",
+    "instanceToken": "SERÁ_GERADO_NA_CRIAÇÃO",
+    "baseUrl": "https://api.z-api.io"
+  },
+  "features": {
+    "buttons": true,
+    "lists": true,
+    "polls": true,
+    "reactions": true,
+    "catalogs": true,
+    "status": true
+  },
+  "webhooks": {
+    "url": "http://localhost:3000/webhook/imperio-zapi",
+    "events": [
+      "message.received",
+      "message.ack",
+      "connection.update",
+      "qr.update"
+    ]
+  },
+  "rotation": {
+    "enabled": true,
+    "strategy": "failover",
+    "priority": 2,
+    "primary": "imperio1",
+    "conditions": {
+      "switchOnError": true,
+      "switchOnLimit": true,
+      "maxMessagesPerHour": 500
+    }
+  },
+  "setup_instructions": {
+    "step1": "Obter Client Token da Z-API",
+    "step2": "Adicionar token em credentials.clientToken",
+    "step3": "Executar script de criação de instância",
+    "step4": "Conectar via QR Code",
+    "step5": "Configurar webhook para produção"
+  }
+}

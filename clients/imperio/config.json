@@ -1,0 +1,206 @@
+{
+  "id": "imperio",
+  "name": "Império Prêmios",
+  "description": "Sistema de recuperação de vendas e broadcast para Império Premiações",
+  "status": "active",
+  "provider": "evolution-baileys",
+  "services": [
+    "webhooks",
+    "broadcast"
+  ],
+  "features": {
+    "buttons": false,
+    "lists": false,
+    "media": true,
+    "typing": true,
+    "presence": true,
+    "groups": false,
+    "reactions": false
+  },
+  "limits": {
+    "messagesPerDay": 5000,
+    "messagesPerHour": 500,
+    "instances": 3,
+    "contactsPerInstance": 10000
+  },
+  "billing": {
+    "plan": "professional",
+    "monthlyBudget": 0,
+    "billingCycle": "monthly",
+    "paymentMethod": "pix"
+  },
+  "webhooks": {
+    "orderExpired": {
+      "enabled": true,
+      "url": "https://oraclewa-imperio.up.railway.app/api/webhook/temp-order-expired",
+      "template": "order_expired",
+      "variations": true,
+      "buttons": true
+    },
+    "orderPaid": {
+      "enabled": true,
+      "url": "https://oraclewa-imperio.up.railway.app/api/webhook/temp-order-paid",
+      "template": "order_paid",
+      "variations": true,
+      "buttons": true
+    }
+  },
+  "broadcast": {
+    "enabled": true,
+    "instances": [
+      "broadcast-imperio-1",
+      "broadcast-imperio-2",
+      "broadcast-imperio-3"
+    ],
+    "antibanStrategy": "advanced",
+    "delays": {
+      "min": 15000,
+      "max": 45000
+    },
+    "warmup": {
+      "enabled": true,
+      "messagesPerDay": 50,
+      "daysRequired": 7
+    },
+    "loadBalancing": {
+      "strategy": "round-robin",
+      "maxPerInstance": 350,
+      "dailyLimit": 1000
+    }
+  },
+  "instances": {
+    "imperio1": {
+      "type": "recovery",
+      "provider": "evolution-baileys",
+      "status": "active",
+      "phone": "+5511982661537",
+      "id": "50b79573-5f46-4631-bcbd-5490841a7deb",
+      "token": "imperio1_token",
+      "description": "Instância principal para webhooks - ATIVA"
+    },
+    "imperio-zapi": {
+      "type": "recovery",
+      "provider": "z-api",
+      "status": "pending",
+      "phone": "pending",
+      "description": "Nova instância Z-API para alternar webhooks - AGUARDANDO CONEXÃO"
+    },
+    "broadcast-imperio-1": {
+      "type": "broadcast",
+      "provider": "evolution-baileys",
+      "status": "pending",
+      "phone": "pending",
+      "description": "Broadcast Baileys 1/3 - AGUARDANDO CONEXÃO"
+    },
+    "broadcast-imperio-2": {
+      "type": "broadcast",
+      "provider": "evolution-baileys",
+      "status": "pending",
+      "phone": "pending",
+      "description": "Broadcast Baileys 2/3 - AGUARDANDO CONEXÃO"
+    },
+    "broadcast-imperio-3": {
+      "type": "broadcast",
+      "provider": "evolution-baileys",
+      "status": "pending",
+      "phone": "pending",
+      "description": "Broadcast Baileys 3/3 - AGUARDANDO CONEXÃO"
+    }
+  },
+  "webhookConfig": {
+    "payloadTransformers": {
+      "order_expired": {
+        "userPhone": "data.user.phone",
+        "userName": "data.user.name",
+        "userEmail": "data.user.email",
+        "userCpf": "data.user.cpf",
+        "productTitle": "data.product.title", 
+        "productId": "data.product.id",
+        "orderTotal": "data.total",
+        "orderId": "data.id",
+        "orderStatus": "data.status",
+        "orderCreatedAt": "data.createdAt",
+        "orderExpirationAt": "data.expirationAt",
+        "pixCode": "data.pixCode",
+        "affiliate": "data.affiliate"
+      },
+      "order_paid": {
+        "userPhone": "data.user.phone",
+        "userName": "data.user.name", 
+        "userEmail": "data.user.email",
+        "userCpf": "data.user.cpf",
+        "productTitle": "data.product.title",
+        "productId": "data.product.id", 
+        "orderTotal": "data.total",
+        "orderId": "data.id",
+        "orderStatus": "data.status",
+        "orderCreatedAt": "data.createdAt",
+        "pixCode": "data.pixCode",
+        "affiliate": "data.affiliate"
+      }
+    },
+    "templateMappings": {
+      "order_expired": {
+        "template": "imperio_order_expired",
+        "fallback": "order_expired",
+        "variables": {
+          "customerName": "userName",
+          "productName": "productTitle", 
+          "totalValue": "orderTotal",
+          "orderId": "orderId",
+          "expirationDate": "orderExpirationAt"
+        }
+      },
+      "order_paid": {
+        "template": "imperio_order_paid",
+        "fallback": "order_paid", 
+        "variables": {
+          "customerName": "userName",
+          "productName": "productTitle",
+          "totalValue": "orderTotal", 
+          "orderId": "orderId"
+        }
+      }
+    },
+    "validation": {
+      "requiredFields": ["userPhone", "userName", "productTitle", "orderTotal"],
+      "phoneFormat": "brazilian",
+      "currencyFormat": "BRL"
+    }
+  },
+  "infrastructure": {
+    "servers": {
+      "hetzner": {
+        "ip": "128.140.7.154",
+        "port": 8080,
+        "type": "vps",
+        "location": "germany"
+      },
+      "railway": {
+        "url": "https://oraclewa-imperio.up.railway.app",
+        "type": "paas",
+        "location": "us-west"
+      }
+    }
+  },
+  "contacts": {
+    "technical": {
+      "name": "Admin",
+      "email": "admin@imperio.com",
+      "phone": "+5511999999999"
+    },
+    "business": {
+      "name": "Imperio Team",
+      "email": "contato@imperio.com",
+      "phone": "+5511888888888"
+    }
+  },
+  "metadata": {
+    "industry": "e-commerce",
+    "segment": "prizes",
+    "monthlyVolume": 100000,
+    "averageTicket": 50
+  },
+  "createdAt": "2024-01-01T00:00:00Z",
+  "updatedAt": "2025-01-09T00:00:00Z"
+}

@@ -3,8 +3,8 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import logger from '../../utils/logger.js';
-import { getRandomVariation as getOrderPaidVariation } from './variations/order_paid_variations.js';
-import { getRandomVariation as getOrderExpiredVariation } from './variations/order_expired_variations.js';
+import { getRandomVariation as getOrderPaidVariation } from './variations/imperio-order-paid-variations.js';
+import { getRandomVariation as getOrderExpiredVariation } from './variations/imperio-order-expired-variations.js';
 import { getButtonOptions } from './button-options.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -119,12 +119,12 @@ export const renderTemplate = async (templateName, data) => {
   let messageContent;
   
   // Usar variação aleatória para mensagens específicas
-  if (templateName === 'order_paid' && Math.random() > 0.3) { // 70% chance de variação
+  if ((templateName === 'order_paid' || templateName === 'imperio_order_paid') && Math.random() > 0.3) { // 70% chance de variação
     const variationTemplate = getOrderPaidVariation();
     const compiledVariation = Handlebars.compile(variationTemplate);
     logger.info('Using message variation for order_paid');
     messageContent = compiledVariation(data);
-  } else if (templateName === 'order_expired' && Math.random() > 0.3) { // 70% chance de variação
+  } else if ((templateName === 'order_expired' || templateName === 'imperio_order_expired') && Math.random() > 0.3) { // 70% chance de variação
     const variationTemplate = getOrderExpiredVariation();
     const compiledVariation = Handlebars.compile(variationTemplate);
     logger.info('Using message variation for order_expired');
