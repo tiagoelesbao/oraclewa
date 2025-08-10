@@ -17,23 +17,52 @@ const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'http://128.140.7.154
 const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || 'Imperio2024@EvolutionSecure';
 const EMPIRE_INSTANCE = 'imperio1';
 
-// Contador para delays simples
+// Contador para delays robustos
 let lastMessageTime = 0;
-const MIN_DELAY = 15000; // 15 segundos mínimo
+let messageCount = 0;
+const MIN_DELAY = 90000; // 90 segundos mínimo
+const RANDOM_DELAY_MAX = 60000; // +0-60s variação aleatória
+const LONG_PAUSE_CHANCE = 0.15; // 15% chance de pausa longa
+const LONG_PAUSE_MIN = 300000; // 5 minutos mínimo para pausa longa
+const LONG_PAUSE_MAX = 900000; // 15 minutos máximo para pausa longa
 
-// Função para delay simples
+// Função para delay
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Função para aplicar delay anti-ban simples
-async function applySimpleDelay() {
+// Função para aplicar delay anti-ban robusto
+async function applyAntibanDelay() {
   const now = Date.now();
   const timeSinceLastMessage = now - lastMessageTime;
+  messageCount++;
   
+  // Calcular delay base (mínimo 90s + variação)
+  let waitTime = MIN_DELAY + Math.random() * RANDOM_DELAY_MAX;
+  
+  // Se ainda não passou tempo suficiente, aguardar
   if (timeSinceLastMessage < MIN_DELAY) {
-    const waitTime = MIN_DELAY - timeSinceLastMessage + Math.random() * 10000; // +0-10s random
-    console.log(`⏳ Anti-ban delay: ${Math.round(waitTime / 1000)}s`);
+    waitTime = MIN_DELAY - timeSinceLastMessage + Math.random() * RANDOM_DELAY_MAX;
+  }
+  
+  // Chance de pausa longa aleatória
+  if (Math.random() < LONG_PAUSE_CHANCE) {
+    const longPause = LONG_PAUSE_MIN + Math.random() * (LONG_PAUSE_MAX - LONG_PAUSE_MIN);
+    waitTime += longPause;
+    console.log(`🛑 PAUSA LONGA ALEATÓRIA: ${Math.round(longPause / 60000)} minutos extras`);
+  }
+  
+  // Pausa extra a cada 5 mensagens
+  if (messageCount % 5 === 0) {
+    const batchPause = 120000 + Math.random() * 180000; // 2-5 minutos
+    waitTime += batchPause;
+    console.log(`📦 PAUSA ENTRE LOTES (${messageCount} msgs): +${Math.round(batchPause / 60000)} minutos`);
+  }
+  
+  if (waitTime > 1000) {
+    const waitMinutes = Math.round(waitTime / 60000 * 10) / 10; // 1 casa decimal
+    const waitSeconds = Math.round((waitTime % 60000) / 1000);
+    console.log(`⏳ Anti-ban delay: ${waitMinutes}min ${waitSeconds}s (mensagem #${messageCount})`);
     await sleep(waitTime);
   }
   
@@ -92,8 +121,8 @@ function simulateTypingSync(phone) {
 // Função para enviar WhatsApp (versão simplificada sem async complications)
 async function sendWhatsAppMessage(phone, customerName, type, data) {
   try {
-    // Aplicar delay anti-ban simples
-    await applySimpleDelay();
+    // Aplicar delay anti-ban robusto (90s mínimo + pausas aleatórias)
+    await applyAntibanDelay();
     
     // Limpar telefone
     let cleanPhone = phone.replace(/\D/g, '');
@@ -276,7 +305,10 @@ app.get('/api/management/dashboard', (req, res) => {
     status: 'running',
     webhooks: 'receiving',
     whatsapp: 'active-with-antiban',
-    lastMessage: new Date(lastMessageTime).toISOString()
+    lastMessage: new Date(lastMessageTime).toISOString(),
+    messageCount: messageCount,
+    minDelaySeconds: MIN_DELAY / 1000,
+    antibanFeatures: ['90s+ delays', 'random long pauses', 'batch pauses', 'typing simulation']
   });
 });
 
@@ -297,5 +329,5 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`🌟 OracleWA SaaS v3.0 SIMPLE FIXED running on port ${PORT}`);
   console.log(`📍 Health: http://localhost:${PORT}/health`);
   console.log(`📡 Webhook: /api/webhook/temp-order-*`);
-  console.log(`🛡️ Simple Anti-ban: ACTIVE (15s+ delays + typing)`);
+  console.log(`🛡️ Robust Anti-ban: ACTIVE (90s+ delays + random long pauses + typing)`);
 });
