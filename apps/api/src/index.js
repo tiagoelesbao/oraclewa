@@ -8,8 +8,11 @@ import logger from './utils/logger.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 import routes from './routes/index.js';
 import SimpleWhatsAppManager from './services/whatsapp/simple-manager.js';
+import ImperioWebhookHandler from '../../../clients/imperio/webhooks/webhook-handler.js';
+
 // Initialize Simple WhatsApp Manager for immediate functionality
 const whatsappManager = new SimpleWhatsAppManager();
+const imperioHandler = new ImperioWebhookHandler(whatsappManager);
 
 // Imports opcionais para evitar falhas de deploy
 let connectDatabase, initializeRedis, initializeQueues;
@@ -91,36 +94,11 @@ app.post('/webhook/:clientId/:type', async (req, res) => {
   }
 });
 
-// Simple WhatsApp endpoints with anti-ban (Railway-ready)
+// Multi-tenant webhook endpoints
 app.post('/api/webhook/temp-order-paid', async (req, res) => {
   try {
-    logger.info('💰 ORDEM PAGA RECEBIDA');
-    
-    const userData = req.body.data?.user || {};
-    const userName = userData.name || 'Cliente';
-    const phone = userData.phone || 'N/A';
-    const total = req.body.data?.total || 0;
-    const productName = req.body.data?.product?.title || 'Produto';
-    
-    logger.info(`✅ Cliente: ${userName}, Telefone: ${phone}, Valor: R$ ${total}`);
-    
-    // ENVIAR WHATSAPP COM PROTEÇÕES ANTI-BAN
-    try {
-      const message = `🎉 *PAGAMENTO CONFIRMADO*\\n\\nParabéns *${userName}*! ✅\\n\\nSeu pedido de *${productName}* no valor de *R$ ${total}* foi confirmado com sucesso!\\n\\n🏆 *Você está concorrendo a R$ 100.000,00 pela Federal!*\\n\\n*Próximos passos:*\\n✅ Entre na nossa comunidade VIP\\n📱 Acompanhe os sorteios ao vivo\\n🎯 Boa sorte na sua sorte!\\n\\n👉 https://chat.whatsapp.com/EsOryU1oONNII64AAOz6TF\\n\\n*Império Prêmios* 🍀\\n_Sua sorte começa agora!_`;
-      
-      await whatsappManager.sendMessage(phone, message);
-      logger.info('✅ Mensagem de pedido pago enviada com sucesso!');
-    } catch (whatsappError) {
-      logger.error('❌ Falha no envio WhatsApp:', whatsappError.message);
-    }
-    
-    res.json({ 
-      success: true, 
-      message: 'Order paid processed',
-      customer: userName,
-      phone: phone,
-      total: total
-    });
+    const result = await imperioHandler.processWebhook('order_paid', req.body);
+    res.json(result);
   } catch (error) {
     logger.error('❌ Webhook error:', error.message);
     res.status(500).json({ success: false, error: error.message });
@@ -129,35 +107,32 @@ app.post('/api/webhook/temp-order-paid', async (req, res) => {
 
 app.post('/api/webhook/temp-order-expired', async (req, res) => {
   try {
-    logger.info('⏰ ORDEM EXPIRADA RECEBIDA');
-    
-    const userData = req.body.data?.user || {};
-    const userName = userData.name || 'Cliente';
-    const phone = userData.phone || 'N/A';
-    const total = req.body.data?.total || 0;
-    const productName = req.body.data?.product?.title || 'Produto';
-    
-    logger.info(`✅ Cliente: ${userName}, Telefone: ${phone}, Valor: R$ ${total}`);
-    
-    // ENVIAR WHATSAPP COM PROTEÇÕES ANTI-BAN
-    try {
-      const message = `🚨 *PEDIDO EXPIRADO*\\n\\nOi *${userName}*! ⏰\\n\\nSeu pedido do produto *${productName}* no valor de *R$ ${total}* expirou.\\n\\n🔥 *Última chance para suas cotas!*\\n\\n⚠️ Concorra a *R$ 100.000,00 pela Federal!*\\n🗂️ *Garanta agora:*\\n\\n👉 https://imperiopremioss.com/campanha/rapidinha-valendo-1200000-mil-em-premiacoes?&afiliado=A0RJJ5L1QK\\n\\n*Império Prêmios* 🏆\\n_O tempo está acabando..._`;
-      
-      await whatsappManager.sendMessage(phone, message);
-      logger.info('✅ Mensagem de pedido EXPIRADO enviada com sucesso!');
-    } catch (whatsappError) {
-      logger.error('❌ Falha no envio WhatsApp:', whatsappError.message);
-    }
-    
-    res.json({ 
-      success: true, 
-      message: 'Order expired processed',
-      customer: userName,
-      phone: phone,
-      total: total
-    });
+    const result = await imperioHandler.processWebhook('order_expired', req.body);
+    res.json(result);
   } catch (error) {
     logger.error('❌ Webhook error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Multi-tenant webhook router - for future clients
+app.post('/webhook/:clientId/:type', async (req, res) => {
+  try {
+    const { clientId, type } = req.params;
+    
+    // Route to appropriate client handler
+    let result;
+    switch (clientId) {
+      case 'imperio':
+        result = await imperioHandler.processWebhook(type, req.body);
+        break;
+      default:
+        throw new Error(`Client '${clientId}' not found`);
+    }
+    
+    res.json(result);
+  } catch (error) {
+    logger.error(`❌ Multi-tenant webhook error:`, error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -175,7 +150,18 @@ app.post('/temp-order-expired', (req, res) => {
 
 app.get('/health', async (req, res) => {
   try {
-    const healthChecks = await providerManager.healthCheckAll();
+    // Try to get provider health if available
+    let healthChecks = { status: 'simple-mode' };
+    try {
+      if (providerManager) {
+        healthChecks = await providerManager.healthCheckAll();
+      }
+    } catch (error) {
+      logger.debug('Provider manager not available, using simple health check');
+    }
+    
+    // Get anti-ban statistics
+    const antibanStats = whatsappManager.getStats();
     const clientStats = multiTenantConfig.getSystemStats();
     
     res.json({
