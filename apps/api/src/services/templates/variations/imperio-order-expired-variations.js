@@ -25,7 +25,7 @@ export const IMPERIO_ORDER_EXPIRED_VARIATIONS = [
 ⏳ Após o vencimento, suas cotas serão liberadas para outros participantes.
 
 🌐 *Para garantir suas cotas, acesse nosso site:*
-https://imperiopremios.com/campanha/rapidinha-r-20000000-em-premiacoes?afiliado=A0RJJ5L1QK
+https://imperiopremioss.com/campanha/rapidinha-valendo-1200000-mil-em-premiacoes?&afiliado=A0RJJ5L1QK
 
 🍀 Boa sorte!
 📞 Dúvidas? Responda esta mensagem.
@@ -47,7 +47,7 @@ https://imperiopremios.com/campanha/rapidinha-r-20000000-em-premiacoes?afiliado=
 💰 *Prêmio de R$ 100.000,00 te esperando!*
 
 ⚡ *Finalize agora:*
-https://imperiopremios.com/campanha/rapidinha-r-20000000-em-premiacoes?afiliado=A0RJJ5L1QK
+https://imperiopremioss.com/campanha/rapidinha-valendo-1200000-mil-em-premiacoes?&afiliado=A0RJJ5L1QK
 
 ⏰ *TEMPO ESGOTANDO!* Não deixe R$ 100.000,00 passar!
 
@@ -66,7 +66,7 @@ https://imperiopremios.com/campanha/rapidinha-r-20000000-em-premiacoes?afiliado=
 🏆 *Concorra a R$ 100.000,00!*
 
 🔗 *Garanta agora:*
-https://imperiopremios.com/campanha/rapidinha-r-20000000-em-premiacoes?afiliado=A0RJJ5L1QK
+https://imperiopremioss.com/campanha/rapidinha-valendo-1200000-mil-em-premiacoes?&afiliado=A0RJJ5L1QK
 
 ⏰ O tempo está acabando...
 
