@@ -104,7 +104,7 @@ app.get('/health', (req, res) => {
 });
 
 // Webhook endpoints - SEM integração WhatsApp por enquanto
-app.post('/api/webhook/temp-order-paid', (req, res) => {
+app.post('/api/webhook/temp-order-paid', async (req, res) => {
   try {
     console.log('💰 ORDEM PAGA RECEBIDA');
     
@@ -141,7 +141,7 @@ app.post('/api/webhook/temp-order-paid', (req, res) => {
   }
 });
 
-app.post('/api/webhook/temp-order-expired', (req, res) => {
+app.post('/api/webhook/temp-order-expired', async (req, res) => {
   try {
     console.log('⏰ ORDEM EXPIRADA RECEBIDA');
     
