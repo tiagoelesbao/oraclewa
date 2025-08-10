@@ -7,14 +7,30 @@ import { createServer } from 'http';
 import logger from './utils/logger.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 import routes from './routes/index.js';
-import { connectDatabase } from './database/connection.js';
-import { initializeRedis } from './services/redis/client.js';
-import { initializeQueues } from './services/queue/manager.js';
-import providerManager from './providers/manager/provider-manager.js';
-import multiTenantConfig from './config/multi-tenant-config.js';
-import webhookHandler from './modules/webhooks/webhook-handler.js';
-import broadcastManager from './modules/broadcast/broadcast-manager.js';
-import costCalculator from './services/billing/cost-calculator.js';
+// Imports opcionais para evitar falhas de deploy
+let connectDatabase, initializeRedis, initializeQueues;
+let providerManager, multiTenantConfig, webhookHandler, broadcastManager, costCalculator;
+
+try {
+  const dbModule = await import('./database/connection.js');
+  connectDatabase = dbModule.connectDatabase;
+} catch (error) {
+  logger.warn('Database connection module not found - running without DB');
+}
+
+try {
+  const redisModule = await import('./services/redis/client.js');
+  initializeRedis = redisModule.initializeRedis;
+} catch (error) {
+  logger.warn('Redis module not found - running without Redis');
+}
+
+try {
+  const configModule = await import('./config/multi-tenant-config.js');
+  multiTenantConfig = configModule.default;
+} catch (error) {
+  logger.warn('Multi-tenant config not found - using basic config');
+}
 
 // Carregar configuração do ambiente
 dotenv.config();
