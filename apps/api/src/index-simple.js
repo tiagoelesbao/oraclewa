@@ -51,7 +51,8 @@ async function sendWhatsAppMessage(phone, customerName, type, data) {
         headers: {
           'apikey': EVOLUTION_API_KEY,
           'Content-Type': 'application/json'
-        }
+        },
+        timeout: 10000 // 10 segundos timeout
       }
     );
     
