@@ -3,11 +3,12 @@ import dotenv from 'dotenv';
 import https from 'https';
 import http from 'http';
 import { URL } from 'url';
+import AntibanStrategy from './modules/broadcast/strategies/antiban-strategy.js';
 
 // Carregar configuração do ambiente
 dotenv.config();
 
-console.log('🚀 Starting OracleWA SaaS v3.0 - WITH WHATSAPP INTEGRATION');
+console.log('🚀 Starting OracleWA SaaS v3.0 - WITH WHATSAPP + ANTIBAN INTEGRATION');
 console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
 
 const app = express();
@@ -18,7 +19,120 @@ const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'http://128.140.7.154
 const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || 'Imperio2024@EvolutionSecure';
 const EMPIRE_INSTANCE = 'imperio1';
 
-// Função para enviar WhatsApp (usando http nativo)
+// Initialize AntibanStrategy
+const antibanStrategy = new AntibanStrategy();
+
+// Função para simular digitação
+async function simulateTyping(phone) {
+  return new Promise((resolve, reject) => {
+    try {
+      const payload = JSON.stringify({
+        number: phone,
+        delay: 3000 // 3 segundos
+      });
+      
+      const url = new URL(`/chat/sendPresence/${EMPIRE_INSTANCE}`, EVOLUTION_API_URL);
+      
+      const options = {
+        hostname: url.hostname,
+        port: url.port,
+        path: url.pathname,
+        method: 'POST',
+        headers: {
+          'apikey': EVOLUTION_API_KEY,
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(payload)
+        },
+        timeout: 5000
+      };
+      
+      console.log(`⌨️ Simulating typing for ${phone}...`);
+      
+      const req = http.request(options, (res) => {
+        let data = '';
+        res.on('data', chunk => data += chunk);
+        res.on('end', () => {
+          console.log(`✅ Typing simulation sent: ${res.statusCode}`);
+          resolve({ success: true, status: res.statusCode, data });
+        });
+      });
+      
+      req.on('error', (error) => {
+        console.error(`❌ Typing simulation failed:`, error.message);
+        resolve({ success: false, error: error.message }); // Don't reject to avoid blocking main flow
+      });
+      
+      req.on('timeout', () => {
+        req.destroy();
+        resolve({ success: false, error: 'Request timeout' });
+      });
+      
+      req.write(payload);
+      req.end();
+      
+    } catch (error) {
+      console.error(`❌ Typing simulation error:`, error.message);
+      resolve({ success: false, error: error.message });
+    }
+  });
+}
+
+// Função para simular presença online
+async function simulatePresence(phone, presence = 'available') {
+  return new Promise((resolve, reject) => {
+    try {
+      const payload = JSON.stringify({
+        number: phone,
+        presence: presence
+      });
+      
+      const url = new URL(`/chat/updatePresence/${EMPIRE_INSTANCE}`, EVOLUTION_API_URL);
+      
+      const options = {
+        hostname: url.hostname,
+        port: url.port,
+        path: url.pathname,
+        method: 'POST',
+        headers: {
+          'apikey': EVOLUTION_API_KEY,
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(payload)
+        },
+        timeout: 5000
+      };
+      
+      console.log(`👤 Setting presence ${presence} for ${phone}...`);
+      
+      const req = http.request(options, (res) => {
+        let data = '';
+        res.on('data', chunk => data += chunk);
+        res.on('end', () => {
+          console.log(`✅ Presence updated: ${res.statusCode}`);
+          resolve({ success: true, status: res.statusCode, data });
+        });
+      });
+      
+      req.on('error', (error) => {
+        console.error(`❌ Presence update failed:`, error.message);
+        resolve({ success: false, error: error.message }); // Don't reject to avoid blocking main flow
+      });
+      
+      req.on('timeout', () => {
+        req.destroy();
+        resolve({ success: false, error: 'Request timeout' });
+      });
+      
+      req.write(payload);
+      req.end();
+      
+    } catch (error) {
+      console.error(`❌ Presence update error:`, error.message);
+      resolve({ success: false, error: error.message });
+    }
+  });
+}
+
+// Função para enviar WhatsApp (usando http nativo) com anti-ban
 async function sendWhatsAppMessage(phone, customerName, type, data) {
   return new Promise((resolve, reject) => {
     try {
@@ -56,13 +170,37 @@ async function sendWhatsAppMessage(phone, customerName, type, data) {
         timeout: 10000
       };
       
+      // ANTI-BAN: Aplicar estratégias antes do envio
+      try {
+        await antibanStrategy.beforeSend(EMPIRE_INSTANCE, cleanPhone);
+      } catch (antibanError) {
+        console.warn(`⚠️ Anti-ban check failed: ${antibanError.message}`);
+        reject(new Error(`Anti-ban limit reached: ${antibanError.message}`));
+        return;
+      }
+      
+      // ANTI-BAN: Simular presença online
+      await simulatePresence(cleanPhone, 'available');
+      
+      // ANTI-BAN: Simular digitação por 3 segundos
+      await simulateTyping(cleanPhone);
+      await new Promise(resolve => setTimeout(resolve, 3000)); // Aguardar digitação
+      
       console.log(`📤 Sending WhatsApp to ${cleanPhone} via ${EMPIRE_INSTANCE}`);
       
       const req = http.request(options, (res) => {
         let data = '';
         res.on('data', chunk => data += chunk);
-        res.on('end', () => {
+        res.on('end', async () => {
           console.log(`✅ WhatsApp sent successfully: ${res.statusCode}`);
+          
+          // ANTI-BAN: Aplicar estratégias após o envio
+          try {
+            await antibanStrategy.afterSend(EMPIRE_INSTANCE, cleanPhone);
+          } catch (antibanError) {
+            console.warn(`⚠️ Anti-ban after-send failed: ${antibanError.message}`);
+          }
+          
           resolve({ success: true, status: res.statusCode, data });
         });
       });
@@ -119,13 +257,17 @@ app.post('/api/webhook/temp-order-paid', async (req, res) => {
     console.log(`💰 Valor: R$ ${total}`);
     console.log(`🎁 Produto: ${productName}`);
     
-    // ENVIAR WHATSAPP - REATIVADO!
+    // ENVIAR WHATSAPP COM ANTI-BAN - REATIVADO!
     try {
-      console.log('🚀 Enviando mensagem WhatsApp...');
+      console.log('🚀 Enviando mensagem WhatsApp com proteções anti-ban...');
       await sendWhatsAppMessage(phone, userName, 'order_paid', { total, productName });
       console.log('✅ Mensagem de pedido pago enviada com sucesso!');
     } catch (whatsappError) {
       console.error('❌ Falha no envio WhatsApp:', whatsappError.message);
+      // Se for erro de limite anti-ban, informar no response
+      if (whatsappError.message.includes('Anti-ban limit')) {
+        console.log('⏳ Mensagem será reagendada devido a limites anti-ban');
+      }
     }
     
     res.json({ 
@@ -156,13 +298,17 @@ app.post('/api/webhook/temp-order-expired', async (req, res) => {
     console.log(`💰 Valor: R$ ${total}`);
     console.log(`🎁 Produto: ${productName}`);
     
-    // ENVIAR WHATSAPP - REATIVADO!
+    // ENVIAR WHATSAPP COM ANTI-BAN - REATIVADO!
     try {
-      console.log('🚀 Enviando mensagem WhatsApp...');
+      console.log('🚀 Enviando mensagem WhatsApp com proteções anti-ban...');
       await sendWhatsAppMessage(phone, userName, 'order_expired', { total, productName });
       console.log('✅ Mensagem de pedido EXPIRADO enviada com sucesso!');
     } catch (whatsappError) {
       console.error('❌ Falha no envio WhatsApp:', whatsappError.message);
+      // Se for erro de limite anti-ban, informar no response
+      if (whatsappError.message.includes('Anti-ban limit')) {
+        console.log('⏳ Mensagem será reagendada devido a limites anti-ban');
+      }
     }
     
     res.json({ 
@@ -214,8 +360,22 @@ app.use('*', (req, res) => {
   });
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🌟 OracleWA SaaS v3.0 SIMPLE running on port ${PORT}`);
-  console.log(`📍 Health: http://localhost:${PORT}/health`);
-  console.log(`📡 Webhook: /api/webhook/temp-order-*`);
-});
+// Initialize and start server
+async function startServer() {
+  try {
+    await antibanStrategy.initialize();
+    console.log('🛡️ Anti-ban strategy initialized');
+    
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`🌟 OracleWA SaaS v3.0 SIMPLE running on port ${PORT}`);
+      console.log(`📍 Health: http://localhost:${PORT}/health`);
+      console.log(`📡 Webhook: /api/webhook/temp-order-*`);
+      console.log(`🛡️ Anti-ban protections: ACTIVE`);
+    });
+  } catch (error) {
+    console.error('❌ Failed to start server:', error.message);
+    process.exit(1);
+  }
+}
+
+startServer();
