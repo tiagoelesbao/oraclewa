@@ -75,17 +75,50 @@ app.post('/temp-order-expired', (req, res) => {
   }
 });
 
-// Também manter com prefix para compatibilidade
+// Endpoints com prefixo /api/webhook/ (URL completa do Railway)
+app.post('/api/webhook/temp-order-paid', (req, res) => {
+  try {
+    console.log('💰 API Webhook - Império Order Paid received');
+    console.log('📦 Payload:', JSON.stringify(req.body, null, 2));
+    
+    const { event, userName, phone, total } = req.body;
+    console.log(`✅ Processing order paid via API: ${userName} (${phone}) - R$ ${total}`);
+    
+    res.json({ success: true, message: 'Order paid webhook processed via API', event });
+  } catch (error) {
+    console.error('❌ Error processing API order paid webhook:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/webhook/temp-order-expired', (req, res) => {
+  try {
+    console.log('⏰ API Webhook - Império Order Expired received');
+    console.log('📦 Payload:', JSON.stringify(req.body, null, 2));
+    
+    const { event, userName, phone, total } = req.body;
+    console.log(`⚠️ Processing order expired via API: ${userName} (${phone}) - R$ ${total}`);
+    
+    res.json({ success: true, message: 'Order expired webhook processed via API', event });
+  } catch (error) {
+    console.error('❌ Error processing API order expired webhook:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Também manter versões sem /api para compatibilidade
 app.post('/webhook/temp-order-paid', (req, res) => {
-  console.log('💰 Webhook with prefix - redirecting...');
+  console.log('💰 Webhook without API prefix - redirecting to /temp-order-paid');
   req.url = '/temp-order-paid';
-  app._router.handle(req, res);
+  req.method = 'POST';
+  app.handle(req, res);
 });
 
 app.post('/webhook/temp-order-expired', (req, res) => {
-  console.log('⏰ Webhook with prefix - redirecting...');
+  console.log('⏰ Webhook without API prefix - redirecting to /temp-order-expired');
   req.url = '/temp-order-expired';
-  app._router.handle(req, res);
+  req.method = 'POST';
+  app.handle(req, res);
 });
 
 // Dashboard básico
@@ -104,6 +137,8 @@ app.use('*', (req, res) => {
     error: 'Endpoint not found',
     available: [
       '/health',
+      '/api/webhook/temp-order-paid',
+      '/api/webhook/temp-order-expired',
       '/temp-order-paid',
       '/temp-order-expired', 
       '/webhook/temp-order-paid',
