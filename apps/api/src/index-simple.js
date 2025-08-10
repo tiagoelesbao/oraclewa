@@ -42,17 +42,50 @@ app.post('/webhook/:clientId/:type', async (req, res) => {
   });
 });
 
-// Império webhook shortcuts
+// Império webhook shortcuts - URLs sem /webhook prefix
+app.post('/temp-order-paid', (req, res) => {
+  try {
+    console.log('💰 Império Order Paid webhook received');
+    console.log('📦 Payload:', JSON.stringify(req.body, null, 2));
+    
+    // Processar webhook aqui (por enquanto apenas log)
+    const { event, userName, phone, total } = req.body;
+    console.log(`✅ Processing order paid: ${userName} (${phone}) - R$ ${total}`);
+    
+    res.json({ success: true, message: 'Order paid webhook processed', event });
+  } catch (error) {
+    console.error('❌ Error processing order paid webhook:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/temp-order-expired', (req, res) => {
+  try {
+    console.log('⏰ Império Order Expired webhook received');
+    console.log('📦 Payload:', JSON.stringify(req.body, null, 2));
+    
+    // Processar webhook aqui (por enquanto apenas log)
+    const { event, userName, phone, total } = req.body;
+    console.log(`⚠️ Processing order expired: ${userName} (${phone}) - R$ ${total}`);
+    
+    res.json({ success: true, message: 'Order expired webhook processed', event });
+  } catch (error) {
+    console.error('❌ Error processing order expired webhook:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Também manter com prefix para compatibilidade
 app.post('/webhook/temp-order-paid', (req, res) => {
-  console.log('💰 Império Order Paid webhook received');
-  console.log('📦 Payload:', JSON.stringify(req.body, null, 2));
-  res.json({ success: true, message: 'Order paid webhook processed' });
+  console.log('💰 Webhook with prefix - redirecting...');
+  req.url = '/temp-order-paid';
+  app._router.handle(req, res);
 });
 
 app.post('/webhook/temp-order-expired', (req, res) => {
-  console.log('⏰ Império Order Expired webhook received');
-  console.log('📦 Payload:', JSON.stringify(req.body, null, 2));
-  res.json({ success: true, message: 'Order expired webhook processed' });
+  console.log('⏰ Webhook with prefix - redirecting...');
+  req.url = '/temp-order-expired';
+  app._router.handle(req, res);
 });
 
 // Dashboard básico
@@ -71,9 +104,11 @@ app.use('*', (req, res) => {
     error: 'Endpoint not found',
     available: [
       '/health',
-      '/webhook/:clientId/:type',
+      '/temp-order-paid',
+      '/temp-order-expired', 
       '/webhook/temp-order-paid',
       '/webhook/temp-order-expired',
+      '/webhook/:clientId/:type',
       '/api/management/dashboard'
     ]
   });
