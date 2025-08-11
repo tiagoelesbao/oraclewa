@@ -115,6 +115,42 @@ app.post('/api/webhook/temp-order-expired', async (req, res) => {
   }
 });
 
+// Debug endpoint para testar payloads
+app.post('/api/debug/webhook/:clientId/:type', async (req, res) => {
+  try {
+    const { clientId, type } = req.params;
+    logger.info(`🧪 DEBUG: Testing payload for ${clientId}/${type}`);
+    
+    // Log do payload recebido
+    console.log('📦 Raw Payload:', JSON.stringify(req.body, null, 2));
+    
+    // Simular processamento sem enviar WhatsApp
+    const client = clientManager.getClient(clientId);
+    const extractedData = scalableWebhookHandler.extractPayloadData ? 
+      await scalableWebhookHandler.extractPayloadData(client, type, req.body) :
+      req.body;
+    
+    console.log('🔍 Extracted Data:', extractedData);
+    
+    res.json({
+      success: true,
+      debug: true,
+      clientId,
+      type,
+      rawPayload: req.body,
+      extractedData,
+      message: 'Debug completed - no WhatsApp sent'
+    });
+  } catch (error) {
+    logger.error(`❌ Debug error:`, error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      debug: true
+    });
+  }
+});
+
 // Legacy redirects
 app.post('/temp-order-paid', (req, res) => {
   req.url = '/api/webhook/temp-order-paid';

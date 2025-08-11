@@ -80,7 +80,9 @@ class ScalableWebhookHandler {
       }
 
       // Extrair dados do payload usando configuração do cliente
+      logger.debug(`📦 Raw payload for ${clientId}/${webhookType}:`, JSON.stringify(payload));
       const extractedData = this.extractPayloadData(client, webhookType, payload);
+      logger.debug(`🔍 Extracted data:`, extractedData);
       
       // Validar dados obrigatórios
       this.validatePayloadData(client, extractedData);
@@ -145,15 +147,48 @@ class ScalableWebhookHandler {
    * Extração padrão de payload (fallback)
    */
   extractStandardPayload(payload) {
-    const userData = payload.data?.user || {};
+    // Tentar múltiplos formatos de payload
+    const userData = payload.data?.user || payload.user || {};
+    const productData = payload.data?.product || payload.product || {};
+    
+    // Tentar diferentes campos para telefone
+    const phone = userData.phone || 
+                  payload.data?.phone || 
+                  payload.phone || 
+                  userData.telefone ||
+                  'N/A';
+    
+    // Tentar diferentes campos para nome
+    const customerName = userData.name || 
+                        userData.nome ||
+                        payload.data?.name ||
+                        payload.name ||
+                        payload.customerName ||
+                        'Cliente';
+    
+    // Tentar diferentes campos para valor
+    const total = payload.data?.total || 
+                 payload.total ||
+                 payload.value ||
+                 payload.amount ||
+                 0;
+    
+    // Tentar diferentes campos para produto
+    const productName = productData.title || 
+                       productData.name ||
+                       productData.nome ||
+                       payload.data?.productName ||
+                       payload.productName ||
+                       'Produto';
+    
     return {
-      customerName: userData.name || 'Cliente',
-      phone: userData.phone || 'N/A', 
-      total: payload.data?.total || 0,
-      productName: payload.data?.product?.title || 'Produto',
-      orderId: payload.data?.id,
-      email: userData.email,
-      cpf: userData.cpf
+      customerName,
+      phone, 
+      total,
+      productName,
+      orderId: payload.data?.id || payload.id,
+      email: userData.email || payload.email,
+      cpf: userData.cpf || payload.cpf
     };
   }
 
@@ -170,9 +205,10 @@ class ScalableWebhookHandler {
    * Valida dados extraídos do payload
    */
   validatePayloadData(client, data) {
-    const required = client.webhookConfig?.validation?.requiredFields || ['phone', 'customerName'];
+    // Campos essenciais para funcionamento (sempre validar)
+    const essentialFields = ['phone', 'customerName'];
     
-    for (const field of required) {
+    for (const field of essentialFields) {
       if (!data[field] || data[field] === 'N/A') {
         throw new Error(`Required field missing: ${field}`);
       }
