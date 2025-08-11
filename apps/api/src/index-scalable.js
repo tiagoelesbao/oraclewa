@@ -9,6 +9,7 @@ import logger from './utils/logger.js';
 import clientManager from './core/client-manager.js';
 import templateManager from './core/template-manager.js';
 import scalableWebhookHandler from './core/webhook-handler.js';
+import hetznerManager from './core/hetzner-manager.js';
 
 // Carregar configuração do ambiente
 dotenv.config();
@@ -44,6 +45,7 @@ app.get('/health', (req, res) => {
     const systemStats = clientManager.getSystemStats();
     const templateStats = templateManager.getTemplateStats();
     const webhookStats = scalableWebhookHandler.getWebhookStats();
+    const hetznerStats = hetznerManager.getInstanceStats();
     
     res.json({
       status: 'ok',
@@ -54,6 +56,7 @@ app.get('/health', (req, res) => {
       system: systemStats,
       templates: templateStats,
       webhooks: webhookStats,
+      hetzner: hetznerStats,
       features: {
         trueMultiTenant: true,
         clientSeparation: true,
@@ -61,7 +64,8 @@ app.get('/health', (req, res) => {
         scalableWebhooks: true,
         antibanDelays: true,
         typingSimulation: true,
-        autoClientDiscovery: true
+        autoClientDiscovery: true,
+        hetznerIntegration: true
       }
     });
   } catch (error) {
@@ -187,6 +191,55 @@ app.get('/api/management/dashboard', (req, res) => {
   }
 });
 
+// Hetzner management endpoints
+app.get('/api/management/hetzner/instances', async (req, res) => {
+  try {
+    const instances = await hetznerManager.fetchServerInstances();
+    res.json({ success: true, instances });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/management/hetzner/instances/:clientId/create', async (req, res) => {
+  try {
+    const { clientId } = req.params;
+    const results = await hetznerManager.createAllClientInstances(clientId);
+    res.json({ success: true, results });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get('/api/management/hetzner/instances/:instanceName/qrcode', async (req, res) => {
+  try {
+    const { instanceName } = req.params;
+    const qrcode = await hetznerManager.getInstanceQRCode(instanceName);
+    res.json({ success: true, qrcode });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get('/api/management/hetzner/instances/:instanceName/status', async (req, res) => {
+  try {
+    const { instanceName } = req.params;
+    const status = await hetznerManager.getInstanceStatus(instanceName);
+    res.json({ success: true, status });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/management/hetzner/sync', async (req, res) => {
+  try {
+    const syncResult = await hetznerManager.syncInstances();
+    res.json({ success: true, syncResult });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Reload endpoints para desenvolvimento
 app.post('/api/management/reload/clients', async (req, res) => {
   try {
@@ -235,6 +288,14 @@ async function initializeScalableSystem() {
 
     // 3. Initialize Scalable Webhook Handler
     await scalableWebhookHandler.initialize();
+
+    // 4. Initialize Hetzner Manager (optional)
+    try {
+      await hetznerManager.initialize();
+      logger.info('✅ Hetzner Manager initialized');
+    } catch (error) {
+      logger.warn('⚠️ Hetzner Manager failed to initialize (continuing without it):', error.message);
+    }
 
     logger.info('✅ All core managers initialized successfully');
 
