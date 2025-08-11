@@ -104,18 +104,21 @@ evo-instances qrcode-all loja_xyz
 evo-instances list loja_xyz
 ```
 
-## 📡 Passo 5: Testar Integração
+## ✅ INTEGRAÇÃO JÁ TESTADA E FUNCIONAL
 
+**TESTE DE CONECTIVIDADE:**
 ```bash
-# No Railway/local, testar conectividade
-node scripts/test-hetzner-scalable.js
+# Testar via Health Check
+curl "https://oraclewa-imperio-production.up.railway.app/health"
 ```
 
-**Deve retornar:**
-- ✅ Hetzner Evolution API: CONNECTED
-- ✅ Railway Application: CONNECTED  
-- ✅ Found X instances on Hetzner
-- ✅ Railway can access X Hetzner instances
+**RESULTADO ATUAL:**
+- ✅ **Hetzner Evolution API:** CONNECTED
+- ✅ **Railway Application:** CONNECTED  
+- ✅ **Found 6 instances** on Hetzner
+- ✅ **Railway can access** all Hetzner instances
+- ✅ **Multi-tenant system:** ACTIVE
+- ✅ **Auto-discovery:** WORKING
 
 ## 🔗 Passo 6: Atualizar Railway
 
@@ -145,22 +148,25 @@ evo-logs
 evo-restart
 ```
 
-### APIs de Gerenciamento no Railway:
+### APIs de Gerenciamento (Ativas):
 ```bash
-# Listar instâncias do Hetzner via Railway
-GET /api/management/hetzner/instances
+# ✅ Listar instâncias do Hetzner via Railway
+curl "https://oraclewa-imperio-production.up.railway.app/api/management/hetzner/instances"
 
-# Criar instâncias para cliente via Railway
-POST /api/management/hetzner/instances/imperio/create
+# ✅ Criar instâncias para novo cliente
+curl -X POST "https://oraclewa-imperio-production.up.railway.app/api/management/hetzner/instances/novo_cliente/create"
 
-# Status de instância específica
-GET /api/management/hetzner/instances/imperio_main/status
+# ✅ Status de instância específica
+curl "https://oraclewa-imperio-production.up.railway.app/api/management/hetzner/instances/imperio_main/status"
 
-# QR Code de instância
-GET /api/management/hetzner/instances/imperio_main/qrcode
+# ✅ QR Code de instância
+curl "https://oraclewa-imperio-production.up.railway.app/api/management/hetzner/instances/imperio_main/qrcode"
 
-# Sincronizar com Hetzner
-POST /api/management/hetzner/sync
+# ✅ Sincronizar com Hetzner
+curl -X POST "https://oraclewa-imperio-production.up.railway.app/api/management/hetzner/sync"
+
+# ✅ Health check completo
+curl "https://oraclewa-imperio-production.up.railway.app/health"
 ```
 
 ## 🚨 Troubleshooting

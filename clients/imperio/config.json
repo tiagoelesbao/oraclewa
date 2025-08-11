@@ -32,14 +32,14 @@
   "webhooks": {
     "orderExpired": {
       "enabled": true,
-      "url": "https://oraclewa-imperio.up.railway.app/api/webhook/temp-order-expired",
+      "url": "https://oraclewa-imperio-production.up.railway.app/api/webhook/temp-order-expired",
       "template": "order_expired",
       "variations": true,
       "buttons": true
     },
     "orderPaid": {
       "enabled": true,
-      "url": "https://oraclewa-imperio.up.railway.app/api/webhook/temp-order-paid",
+      "url": "https://oraclewa-imperio-production.up.railway.app/api/webhook/temp-order-paid",
       "template": "order_paid",
       "variations": true,
       "buttons": true

@@ -2,9 +2,13 @@
 
 ## 🎯 NAVEGAÇÃO RÁPIDA
 
-### 📋 **DOCUMENTAÇÃO PRINCIPAL**
-- 🏆 **[README_SISTEMA_COMPLETO.md](./README_SISTEMA_COMPLETO.md)** - **DOCUMENTO MASTER** - Visão completa do sistema
-- 📊 **[README_PRINCIPAL.md](./README_PRINCIPAL.md)** - Visão geral do projeto Império
+### 📋 **DOCUMENTAÇÃO PRINCIPAL v3.0**
+- 🏆 **[README_SISTEMA_COMPLETO.md](./README_SISTEMA_COMPLETO.md)** - **DOCUMENTO MASTER** - Sistema Escalável v3.0
+- 🏗️ **[ARQUITETURA_ESCALAVEL.md](./ARQUITETURA_ESCALAVEL.md)** - Arquitetura Multi-Tenant implementada
+- 🚀 **[GUIA_DEPLOYMENT_ESCALAVEL.md](./GUIA_DEPLOYMENT_ESCALAVEL.md)** - Deploy novos clientes
+- 🔗 **[API_REFERENCE.md](./API_REFERENCE.md)** - APIs e Endpoints completos
+- 🖥️ **[HETZNER_MIGRATION_GUIDE.md](./HETZNER_MIGRATION_GUIDE.md)** - Sistema escalável implementado
+- 📊 **[README_PRINCIPAL.md](./README_PRINCIPAL.md)** - Visão geral do projeto
 
 ---
 

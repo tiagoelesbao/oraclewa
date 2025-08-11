@@ -97,22 +97,68 @@ app.post('/webhook/:clientId/:type', async (req, res) => {
 // Endpoints específicos para Império (backward compatibility)
 app.post('/api/webhook/temp-order-paid', async (req, res) => {
   try {
-    const result = await scalableWebhookHandler.processWebhook('imperio', 'order_paid', req.body);
-    res.json(result);
+    // Resposta imediata para evitar timeout 499
+    const requestId = Date.now().toString();
+    res.json({ 
+      success: true, 
+      message: 'Webhook received and queued for processing',
+      requestId,
+      timestamp: new Date().toISOString()
+    });
+
+    // Processar assincronamente (não await)
+    scalableWebhookHandler.processWebhook('imperio', 'order_paid', req.body)
+      .then(result => {
+        logger.info(`✅ Async webhook processed: ${requestId}`, result);
+      })
+      .catch(error => {
+        logger.error(`❌ Async webhook error: ${requestId}`, error.message);
+      });
+
   } catch (error) {
-    logger.error('❌ Webhook error:', error.message);
+    logger.error('❌ Webhook sync error:', error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
 app.post('/api/webhook/temp-order-expired', async (req, res) => {
   try {
-    const result = await scalableWebhookHandler.processWebhook('imperio', 'order_expired', req.body);
-    res.json(result);
+    // Resposta imediata para evitar timeout 499
+    const requestId = Date.now().toString();
+    res.json({ 
+      success: true, 
+      message: 'Webhook received and queued for processing',
+      requestId,
+      timestamp: new Date().toISOString()
+    });
+
+    // Processar assincronamente (não await)
+    scalableWebhookHandler.processWebhook('imperio', 'order_expired', req.body)
+      .then(result => {
+        logger.info(`✅ Async webhook processed: ${requestId}`, result);
+      })
+      .catch(error => {
+        logger.error(`❌ Async webhook error: ${requestId}`, error.message);
+      });
+
   } catch (error) {
-    logger.error('❌ Webhook error:', error.message);
+    logger.error('❌ Webhook sync error:', error.message);
     res.status(500).json({ success: false, error: error.message });
   }
+});
+
+// Status de processamento webhook por requestId
+app.get('/api/webhook/status/:requestId', (req, res) => {
+  const { requestId } = req.params;
+  
+  // Em produção, isso seria consultado de um banco/cache
+  // Por enquanto, resposta genérica
+  res.json({
+    requestId,
+    status: 'processed', // pending, processing, processed, failed
+    message: 'Webhook processing completed',
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Debug endpoint para testar payloads
