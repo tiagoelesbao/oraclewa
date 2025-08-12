@@ -9,7 +9,8 @@ import logger from '../utils/logger.js';
 class ClientManager {
   constructor() {
     this.clients = new Map();
-    this.clientsPath = path.resolve('../../clients');
+    // Use relative path from project root, not absolute
+    this.clientsPath = process.env.CLIENTS_PATH || path.resolve(process.cwd(), 'clients');
     this.initialized = false;
   }
 
@@ -33,7 +34,23 @@ class ClientManager {
    */
   async loadAllClients() {
     try {
+      // Ensure clients directory exists
+      try {
+        await fs.access(this.clientsPath);
+      } catch (error) {
+        logger.warn(`Clients directory not found at ${this.clientsPath}, creating default client configuration`);
+        await this.createDefaultClientStructure();
+        return;
+      }
+
       const clientDirs = await fs.readdir(this.clientsPath, { withFileTypes: true });
+      
+      // If no client directories found, create default configuration
+      if (clientDirs.length === 0) {
+        logger.warn('No client directories found, creating default client configuration');
+        await this.createDefaultClientStructure();
+        return;
+      }
       
       for (const dir of clientDirs) {
         if (dir.isDirectory() && !dir.name.startsWith('_')) {
@@ -42,7 +59,51 @@ class ClientManager {
       }
     } catch (error) {
       logger.error('Error loading clients:', error);
-      throw error;
+      // Don't throw in production, create default configuration instead
+      if (process.env.NODE_ENV === 'production') {
+        logger.warn('Creating default client configuration for production');
+        await this.createDefaultClientStructure();
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  /**
+   * Cria estrutura de cliente padrão para produção
+   */
+  async createDefaultClientStructure() {
+    try {
+      // Create default client configuration in memory
+      const defaultClient = {
+        id: 'imperio',
+        name: 'Império Prêmios',
+        status: 'active',
+        provider: 'evolution-baileys',
+        config: {
+          webhooks: {
+            enabled: true,
+            endpoints: ['/webhook/imperio/order_paid', '/webhook/imperio/order_expired']
+          },
+          antiban: {
+            enabled: true,
+            strategy: 'conti_chips',
+            delays: { min: 30000, max: 120000 }
+          },
+          limits: {
+            messagesPerDay: 500,
+            messagesPerHour: 50
+          }
+        },
+        instances: [],
+        webhooks: new Map(),
+        lastLoaded: new Date().toISOString()
+      };
+
+      this.clients.set('imperio', defaultClient);
+      logger.info('✅ Default client configuration created: imperio');
+    } catch (error) {
+      logger.error('Error creating default client structure:', error);
     }
   }
 

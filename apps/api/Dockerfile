@@ -9,8 +9,12 @@ RUN npm ci --only=production
 # Copy application files
 COPY . .
 
-# Create logs directory
+# Create necessary directories
 RUN mkdir -p logs
+RUN mkdir -p clients
+
+# Copy clients configuration if it exists
+COPY clients* ./clients/ || true
 
 # Expose application port
 EXPOSE 3000
