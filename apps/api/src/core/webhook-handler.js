@@ -89,7 +89,7 @@ class ScalableWebhookHandler {
       
       // Gerar mensagem usando template do cliente
       const templateType = this.mapWebhookToTemplate(webhookType);
-      const message = templateManager.generateMessage(clientId, templateType, extractedData);
+      const message = await templateManager.generateMessage(clientId, templateType, extractedData);
       
       // Enviar via WhatsApp
       const result = await whatsappManager.sendMessage(extractedData.phone, message);
