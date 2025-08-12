@@ -3,8 +3,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import logger from '../../utils/logger.js';
-import { getRandomVariation as getOrderPaidVariation } from './variations/imperio-order-paid-variations.js';
-import { getRandomVariation as getOrderExpiredVariation } from './variations/imperio-order-expired-variations.js';
+// Variações serão carregadas dinamicamente via Template Manager
 import { getButtonOptions } from './button-options.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -115,70 +114,98 @@ Obrigado por comprar conosco! 💚`
 // Prevent infinite loops in template loading
 let isLoadingTemplates = false;
 
-export const renderTemplate = async (templateName, data) => {
-  let messageContent;
-  
-  // Usar variação aleatória para mensagens específicas
-  if ((templateName === 'order_paid' || templateName === 'imperio_order_paid') && Math.random() > 0.3) { // 70% chance de variação
-    const variationTemplate = getOrderPaidVariation();
-    const compiledVariation = Handlebars.compile(variationTemplate);
-    logger.info('Using message variation for order_paid');
-    messageContent = compiledVariation(data);
-  } else if ((templateName === 'order_expired' || templateName === 'imperio_order_expired') && Math.random() > 0.3) { // 70% chance de variação
-    const variationTemplate = getOrderExpiredVariation();
-    const compiledVariation = Handlebars.compile(variationTemplate);
-    logger.info('Using message variation for order_expired');
-    messageContent = compiledVariation(data);
-  } else {
-    // Usar template padrão
-    if (!templates[templateName] && !isLoadingTemplates) {
-      isLoadingTemplates = true;
-      try {
-        await loadTemplates();
-      } catch (error) {
-        logger.error('Failed to load templates:', error);
-      } finally {
-        isLoadingTemplates = false;
-      }
-    }
-    
-    const template = templates[templateName];
-    
-    if (!template) {
-      logger.error(`Template not found: ${templateName}. Available templates:`, Object.keys(templates));
-      
-      // Create a simple fallback template inline
-      const fallbackTemplate = templateName === 'order_expired' 
-        ? `Olá {{user.name}}! Suas {{quantity}} cotas estão expirando. Total: R$ {{total}}`
-        : `Olá {{user.name}}! Pagamento confirmado. {{quantity}} cotas - R$ {{total}}`;
-      
-      const compiled = Handlebars.compile(fallbackTemplate);
-      return compiled(data);
-    }
-    
+export const renderTemplate = async (templateName, data, clientId = null) => {
+  // Tentar carregar template específico do cliente com variação
+  if (clientId && Math.random() > 0.3) { // 70% chance de usar variação
     try {
-      messageContent = template(data);
+      const variation = await loadClientVariation(clientId, templateName);
+      if (variation) {
+        logger.info(`Using template variation for ${clientId}/${templateName}`);
+        const compiledVariation = Handlebars.compile(variation);
+        return compiledVariation(data);
+      }
     } catch (error) {
-      logger.error(`Error rendering template ${templateName}:`, error);
-      throw error;
+      logger.warn(`Failed to load variation for ${clientId}/${templateName}:`, error.message);
     }
   }
   
-  return messageContent;
+  // Usar template padrão
+  if (!templates[templateName] && !isLoadingTemplates) {
+    isLoadingTemplates = true;
+    try {
+      await loadTemplates();
+    } catch (error) {
+      logger.error('Failed to load templates:', error);
+    } finally {
+      isLoadingTemplates = false;
+    }
+  }
+  
+  const template = templates[templateName];
+  
+  if (!template) {
+    logger.error(`Template not found: ${templateName}. Available templates:`, Object.keys(templates));
+    
+    // Create a simple fallback template inline
+    const fallbackTemplate = templateName === 'order_expired' 
+      ? `Olá {{user.name}}! Suas {{quantity}} cotas estão expirando. Total: R$ {{total}}`
+      : `Olá {{user.name}}! Pagamento confirmado. {{quantity}} cotas - R$ {{total}}`;
+    
+    const compiled = Handlebars.compile(fallbackTemplate);
+    return compiled(data);
+  }
+  
+  try {
+    return template(data);
+  } catch (error) {
+    logger.error(`Error rendering template ${templateName}:`, error);
+    throw error;
+  }
 };
 
-// Nova função para renderizar template com opções de botão
-export const renderTemplateWithButtons = async (templateName, data) => {
-  const messageContent = await renderTemplate(templateName, data);
+/**
+ * Renderiza template com botões (para instâncias ZAPI)
+ * Para Evolution API, retorna apenas o texto
+ */
+export const renderTemplateWithButtons = async (templateName, data, instanceType = 'evolution') => {
+  const messageContent = await renderTemplate(templateName, data, data.clientId);
   
-  // Obter opções de botão baseado no tipo de template
-  const buttonOptionsKey = templateName.toUpperCase();
-  const buttonOptions = getButtonOptions(buttonOptionsKey);
+  // Se for ZAPI, adicionar botões
+  if (instanceType === 'zapi') {
+    const buttonOptionsKey = templateName.toUpperCase();
+    const buttonOptions = getButtonOptions(buttonOptionsKey);
+    
+    return {
+      message: messageContent,
+      buttonOptions: buttonOptions,
+      supportsButtons: true
+    };
+  }
   
+  // Evolution API - apenas texto
   return {
     message: messageContent,
-    buttonOptions: buttonOptions
+    supportsButtons: false
   };
+};
+
+/**
+ * Carrega variação de template específica do cliente
+ */
+const loadClientVariation = async (clientId, templateName) => {
+  try {
+    const variationPath = path.resolve(process.cwd(), 'clients', clientId, 'templates', 'variations', `${templateName}-variations.js`);
+    const variationModule = await import(variationPath);
+    
+    if (variationModule.getRandomVariation) {
+      return variationModule.getRandomVariation();
+    }
+    
+    return null;
+  } catch (error) {
+    // Arquivo não existe ou erro de import - retorna null silenciosamente
+    return null;
+  }
 };
 
 loadTemplates();
