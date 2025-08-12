@@ -104,10 +104,24 @@ class TemplateManager {
   }
 
   /**
-   * Gera mensagem usando template
+   * Gera mensagem usando template com sistema de variações
    */
-  generateMessage(clientId, templateType, data) {
+  async generateMessage(clientId, templateType, data) {
     try {
+      // 70% chance de usar variação
+      if (Math.random() > 0.3) {
+        try {
+          const variation = await this.loadClientVariation(clientId, templateType);
+          if (variation) {
+            logger.info(`🎲 Using template variation for ${clientId}/${templateType}`);
+            return this.compileTemplate(variation, data);
+          }
+        } catch (error) {
+          logger.warn(`Failed to load variation for ${clientId}/${templateType}:`, error.message);
+        }
+      }
+      
+      // Fallback para template padrão
       const template = this.getTemplate(clientId, templateType);
       
       // Se tem função de geração específica
@@ -203,6 +217,39 @@ class TemplateManager {
   hasTemplate(clientId, templateType) {
     const clientTemplates = this.templates.get(clientId);
     return clientTemplates && clientTemplates.has(templateType);
+  }
+
+  /**
+   * Carrega variação de template específica do cliente
+   */
+  async loadClientVariation(clientId, templateType) {
+    try {
+      const variationPath = path.resolve(process.cwd(), 'clients', clientId, 'templates', 'variations', `${templateType}-variations.js`);
+      const variationModule = await import(`file://${variationPath}?t=${Date.now()}`);
+      
+      if (variationModule.getRandomVariation) {
+        return variationModule.getRandomVariation();
+      }
+      
+      return null;
+    } catch (error) {
+      // Arquivo não existe ou erro de import - retorna null silenciosamente
+      return null;
+    }
+  }
+
+  /**
+   * Compila template usando substituição de variáveis
+   */
+  compileTemplate(template, data) {
+    let compiled = template;
+    
+    // Substituir variáveis {{variableName}}
+    compiled = compiled.replace(/\{\{(\w+)\}\}/g, (match, varName) => {
+      return data[varName] || match;
+    });
+    
+    return compiled;
   }
 }
 
