@@ -5,6 +5,8 @@ import { Bars3Icon, BellIcon, UserCircleIcon } from '@heroicons/react/24/outline
 import { cn } from '@/lib/utils';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
+import RealTimeStatus from '@/components/common/RealTimeStatus';
+import { useApp } from '@/contexts/AppContext';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -12,6 +14,8 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ onToggleSidebar, isCollapsed }) => {
+  const { clients, instances } = useApp();
+
   return (
     <header className="bg-white border-b border-gray-200 shadow-soft">
       <div className="flex items-center justify-between px-6 py-4">
@@ -36,21 +40,25 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, isCollapsed }) => {
 
         {/* Right side - Actions and User */}
         <div className="flex items-center space-x-4">
-          {/* System Status */}
-          <div className="hidden lg:flex items-center space-x-2">
-            <div className="w-2 h-2 bg-success-500 rounded-full animate-pulse" />
-            <span className="text-sm text-gray-600">Sistema Operacional</span>
+          {/* Real-time Status */}
+          <div className="hidden lg:block">
+            <RealTimeStatus />
           </div>
 
           {/* Quick Stats */}
           <div className="hidden md:flex items-center space-x-4 text-sm">
             <div className="flex items-center space-x-1">
               <span className="text-gray-500">Clientes:</span>
-              <Badge variant="info" size="sm">1</Badge>
+              <Badge variant="info" size="sm">{clients.length}</Badge>
             </div>
             <div className="flex items-center space-x-1">
               <span className="text-gray-500">Instâncias:</span>
-              <Badge variant="success" size="sm">3</Badge>
+              <Badge 
+                variant={instances.filter(i => i.status === 'connected').length > 0 ? 'success' : 'warning'} 
+                size="sm"
+              >
+                {instances.filter(i => i.status === 'connected').length}/{instances.length}
+              </Badge>
             </div>
           </div>
 

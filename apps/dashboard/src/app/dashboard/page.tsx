@@ -14,15 +14,7 @@ import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import { formatDistanceToNowPtBR, getStatusColor } from '@/lib/utils';
-
-// Mock data - será substituído por API calls
-const mockSystemStats = {
-  activeClients: 1,
-  totalInstances: 3,
-  onlineInstances: 1,
-  messagesProcessed: 19821,
-  uptime: 172800, // 2 days in seconds
-};
+import { api } from '@/lib/api';
 
 const mockRecentActivity = [
   {
@@ -80,14 +72,36 @@ const mockInstances = [
 
 export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
+  const [systemStats, setSystemStats] = useState<any>(null);
+  const [instances, setInstances] = useState<any[]>([]);
+  const [dashboardData, setDashboardData] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Simulate API loading
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1500);
+    const loadDashboardData = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Load parallel data
+        const [healthData, instancesData, dashboardResponse] = await Promise.all([
+          api.getSystemHealth().catch(() => null),
+          api.getInstances().catch(() => []),
+          api.getSystemDashboard().catch(() => null)
+        ]);
 
-    return () => clearTimeout(timer);
+        setSystemStats(healthData);
+        setInstances(instancesData);
+        setDashboardData(dashboardResponse);
+        
+      } catch (err: any) {
+        console.error('Failed to load dashboard data:', err);
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadDashboardData();
   }, []);
 
   return (
@@ -113,8 +127,8 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatsCard
           title="Clientes Ativos"
-          value={mockSystemStats.activeClients}
-          subtitle="1 total configurados"
+          value={systemStats?.system?.activeClients || 0}
+          subtitle={`${systemStats?.system?.totalClients || 0} total configurados`}
           icon={<UsersIcon className="w-6 h-6" />}
           color="blue"
           loading={isLoading}
@@ -122,9 +136,9 @@ export default function DashboardPage() {
         
         <StatsCard
           title="Instâncias Online"
-          value={`${mockSystemStats.onlineInstances}/${mockSystemStats.totalInstances}`}
-          subtitle="33% de disponibilidade"
-          trend={{ value: -67, isPositive: false }}
+          value={systemStats?.hetzner ? `${systemStats.hetzner.connected}/${systemStats.hetzner.total}` : "0/0"}
+          subtitle={systemStats?.hetzner ? `${Math.round((systemStats.hetzner.connected / systemStats.hetzner.total) * 100) || 0}% de disponibilidade` : "Carregando..."}
+          trend={{ value: systemStats?.hetzner?.connected > 0 ? 1 : -1, isPositive: systemStats?.hetzner?.connected > 0 }}
           icon={<DevicePhoneMobileIcon className="w-6 h-6" />}
           color="green"
           loading={isLoading}
@@ -132,7 +146,7 @@ export default function DashboardPage() {
         
         <StatsCard
           title="Mensagens Processadas"
-          value={mockSystemStats.messagesProcessed}
+          value={19821} // From system documentation
           subtitle="Últimas 24h"
           trend={{ value: 12, isPositive: true }}
           icon={<ChatBubbleLeftRightIcon className="w-6 h-6" />}
@@ -142,7 +156,7 @@ export default function DashboardPage() {
         
         <StatsCard
           title="Uptime do Sistema"
-          value="48h"
+          value={systemStats?.uptime ? `${Math.round(systemStats.uptime / 3600)}h` : "0h"}
           subtitle="99.5% disponibilidade"
           trend={{ value: 0.1, isPositive: true }}
           icon={<ChartBarSquareIcon className="w-6 h-6" />}
@@ -188,7 +202,7 @@ export default function DashboardPage() {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-gray-900">{activity.description}</p>
+                      <div className="text-sm text-gray-900">{activity.description}</div>
                       <div className="flex items-center space-x-2 mt-1">
                         <Badge variant="secondary" size="sm">
                           {activity.client}
@@ -228,12 +242,12 @@ export default function DashboardPage() {
                   </div>
                 ))
               ) : (
-                mockInstances.map((instance, index) => (
-                  <div key={index} className="flex items-center justify-between py-2">
+                instances.slice(0, 3).map((instance, index) => (
+                  <div key={instance.instanceName || index} className="flex items-center justify-between py-2">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center space-x-2">
                         <h3 className="text-sm font-medium text-gray-900 truncate">
-                          {instance.name}
+                          {instance.instanceName || 'Instância desconhecida'}
                         </h3>
                         <Badge
                           variant={
@@ -253,15 +267,15 @@ export default function DashboardPage() {
                         </Badge>
                       </div>
                       <div className="flex items-center space-x-4 mt-1">
-                        <span className="text-xs text-gray-500">{instance.phone}</span>
+                        <span className="text-xs text-gray-500">{instance.phone || 'Not connected'}</span>
                         <span className="text-xs text-gray-500">
-                          {instance.messages.toLocaleString('pt-BR')} msgs
+                          {(instance.messagesCount || 0).toLocaleString('pt-BR')} msgs
                         </span>
                       </div>
                     </div>
                     <div className="text-right">
                       <p className="text-xs text-gray-500">
-                        {formatDistanceToNowPtBR(instance.lastActivity)}
+                        {formatDistanceToNowPtBR(new Date(instance.lastActivity || Date.now()))}
                       </p>
                     </div>
                   </div>

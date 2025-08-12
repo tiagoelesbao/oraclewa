@@ -362,6 +362,10 @@ class HetznerManager {
    * Tenta identificar cliente pelo nome da instância
    */
   guessClientFromInstanceName(instanceName) {
+    if (!instanceName || typeof instanceName !== 'string') {
+      return 'unknown';
+    }
+    
     // Padrões comuns: imperio1, imperio_main, broadcast-imperio-1
     const patterns = [
       /^([a-z]+)_?\d*$/,           // imperio1, imperio_2

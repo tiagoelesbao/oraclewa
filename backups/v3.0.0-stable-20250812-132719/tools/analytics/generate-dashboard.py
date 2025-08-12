@@ -1,0 +1,414 @@
+#!/usr/bin/env python3
+
+import json
+import sys
+from datetime import datetime
+
+def generate_dashboard_html(report_file):
+    """Gera dashboard HTML a partir do relatório JSON"""
+    
+    # Ler relatório
+    with open(report_file, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    
+    # Calcular métricas adicionais
+    total = int(data['resumo']['mensagensEnviadas'])
+    sucessos = int(data['resumo']['sucessos'])
+    falhas = int(data['resumo']['falhas'])
+    taxa_sucesso = float(data['resumo']['taxaSuccesso'].replace('%', ''))
+    
+    # HTML do dashboard
+    html = f"""
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relatório de Broadcast - Império Prêmios</title>
+    <style>
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        body {{ 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }}
+        .container {{
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }}
+        .header {{
+            background: linear-gradient(135deg, #2c3e50, #3498db);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }}
+        .header h1 {{
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }}
+        .header .subtitle {{
+            font-size: 1.2em;
+            opacity: 0.95;
+        }}
+        .timestamp {{
+            margin-top: 10px;
+            font-size: 0.9em;
+            opacity: 0.8;
+        }}
+        
+        .metrics {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            padding: 40px;
+            background: #f8f9fa;
+        }}
+        
+        .metric-card {{
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border-top: 4px solid #3498db;
+        }}
+        .metric-card:hover {{
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        }}
+        .metric-card.success {{ border-top-color: #27ae60; }}
+        .metric-card.warning {{ border-top-color: #f39c12; }}
+        .metric-card.info {{ border-top-color: #9b59b6; }}
+        .metric-card.danger {{ border-top-color: #e74c3c; }}
+        
+        .metric-icon {{
+            font-size: 3em;
+            margin-bottom: 15px;
+        }}
+        .metric-value {{
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }}
+        .metric-label {{
+            font-size: 0.95em;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }}
+        
+        .section {{
+            padding: 40px;
+            border-top: 1px solid #ecf0f1;
+        }}
+        .section h2 {{
+            color: #2c3e50;
+            margin-bottom: 25px;
+            font-size: 2em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }}
+        
+        .progress-container {{
+            background: #ecf0f1;
+            border-radius: 15px;
+            height: 30px;
+            overflow: hidden;
+            margin: 20px 0;
+            position: relative;
+        }}
+        .progress-bar {{
+            height: 100%;
+            background: linear-gradient(90deg, #27ae60, #2ecc71);
+            border-radius: 15px;
+            transition: width 1s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }}
+        
+        .details-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 30px;
+        }}
+        
+        .detail-card {{
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 25px;
+            border-left: 4px solid #3498db;
+        }}
+        .detail-card h3 {{
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }}
+        .detail-card p {{
+            color: #555;
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }}
+        .detail-card strong {{
+            color: #2c3e50;
+        }}
+        
+        .status-badge {{
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: bold;
+            text-transform: uppercase;
+        }}
+        .status-success {{ background: #d4edda; color: #155724; }}
+        .status-warning {{ background: #fff3cd; color: #856404; }}
+        .status-danger {{ background: #f8d7da; color: #721c24; }}
+        
+        .recommendation {{
+            background: linear-gradient(135deg, #e8f8f5, #d5f4e6);
+            border: 2px solid #27ae60;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 20px 0;
+        }}
+        .recommendation h3 {{
+            color: #27ae60;
+            margin-bottom: 15px;
+            font-size: 1.4em;
+        }}
+        .recommendation p {{
+            color: #2c3e50;
+            line-height: 1.6;
+        }}
+        
+        .message-list {{
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.06);
+        }}
+        .message-item {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            border-bottom: 1px solid #ecf0f1;
+            transition: background 0.2s;
+        }}
+        .message-item:hover {{
+            background: #f8f9fa;
+        }}
+        .message-success {{ border-left: 3px solid #27ae60; }}
+        .message-fail {{ border-left: 3px solid #e74c3c; }}
+        
+        .footer {{
+            background: #2c3e50;
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }}
+        .footer p {{
+            margin-bottom: 10px;
+        }}
+        
+        @keyframes slideIn {{
+            from {{ transform: translateY(20px); opacity: 0; }}
+            to {{ transform: translateY(0); opacity: 1; }}
+        }}
+        .metric-card {{
+            animation: slideIn 0.5s ease forwards;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Relatório de Broadcast WhatsApp</h1>
+            <p class="subtitle">Campanha: Título de 90K - Império Prêmios</p>
+            <p class="timestamp">📅 Gerado em: {datetime.now().strftime('%d/%m/%Y às %H:%M:%S')}</p>
+        </div>
+        
+        <div class="metrics">
+            <div class="metric-card success">
+                <div class="metric-icon">✅</div>
+                <div class="metric-value">{sucessos}</div>
+                <div class="metric-label">Mensagens Enviadas</div>
+            </div>
+            
+            <div class="metric-card info">
+                <div class="metric-icon">📈</div>
+                <div class="metric-value">{data['resumo']['taxaSuccesso']}</div>
+                <div class="metric-label">Taxa de Sucesso</div>
+            </div>
+            
+            <div class="metric-card warning">
+                <div class="metric-icon">⚡</div>
+                <div class="metric-value">{data['resumo']['velocidadeReal']}</div>
+                <div class="metric-label">Velocidade Real</div>
+            </div>
+            
+            <div class="metric-card success">
+                <div class="metric-icon">💰</div>
+                <div class="metric-value">{data['metricas']['receitaEstimada']}</div>
+                <div class="metric-label">Receita Estimada</div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>📊 Análise de Performance</h2>
+            
+            <div style="margin: 30px 0;">
+                <h3 style="margin-bottom: 15px;">Taxa de Entrega</h3>
+                <div class="progress-container">
+                    <div class="progress-bar" style="width: {taxa_sucesso}%">
+                        {taxa_sucesso:.1f}% de sucesso
+                    </div>
+                </div>
+                <p style="color: #666; margin-top: 10px;">
+                    <strong>{sucessos}</strong> mensagens entregues de <strong>{total}</strong> tentativas
+                </p>
+            </div>
+            
+            <div class="details-grid">
+                <div class="detail-card">
+                    <h3>⏱️ Tempo de Execução</h3>
+                    <p><strong>Duração total:</strong> {data['resumo']['duracaoMinutos']} minutos</p>
+                    <p><strong>Velocidade média:</strong> {data['resumo']['velocidadeReal']}</p>
+                    <p><strong>Intervalo entre msgs:</strong> 30 segundos</p>
+                    <span class="status-badge status-success">Otimizado</span>
+                </div>
+                
+                <div class="detail-card">
+                    <h3>💰 Análise Financeira</h3>
+                    <p><strong>Receita esperada:</strong> {data['metricas']['receitaEstimada']}</p>
+                    <p><strong>Custo operacional:</strong> {data['metricas']['custoOperacional']}</p>
+                    <p><strong>Lucro estimado:</strong> {data['metricas']['lucroEstimado']}</p>
+                    <span class="status-badge status-success">Lucrativo</span>
+                </div>
+                
+                <div class="detail-card">
+                    <h3>🎯 Conversões</h3>
+                    <p><strong>Leads esperados:</strong> {data['metricas']['conversaoEsperada']}</p>
+                    <p><strong>Taxa conversão:</strong> ~2%</p>
+                    <p><strong>Qualidade:</strong> Alta</p>
+                    <span class="status-badge status-warning">Monitorar</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>🚀 Recomendações e Próximos Passos</h2>
+            
+            <div class="recommendation">
+                <h3>🔧 Otimização</h3>
+                <p>{data['proximosPassos']['otimizacao']}</p>
+            </div>
+            
+            <div class="recommendation">
+                <h3>📈 Escalonamento</h3>
+                <p>{data['proximosPassos']['escalonamento']}</p>
+            </div>
+            
+            <div class="recommendation">
+                <h3>💸 Investimento</h3>
+                <p>{data['proximosPassos']['investimento']}</p>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>📱 Detalhes dos Envios</h2>
+            <div class="message-list">
+"""
+    
+    # Adicionar lista de mensagens enviadas
+    for msg in data.get('mensagens_enviadas', [])[:20]:  # Mostrar apenas primeiras 20
+        status_class = 'message-success' if msg.get('status') == 'sucesso' else 'message-fail'
+        status_icon = '✅' if msg.get('status') == 'sucesso' else '❌'
+        
+        html += f"""
+                <div class="message-item {status_class}">
+                    <div>
+                        <strong>{msg.get('nome', 'Unknown')}</strong> - {msg.get('telefone', '')}
+                        <br>
+                        <small style="color: #666;">Template {msg.get('template_usado', '')} • {msg.get('timestamp', '')}</small>
+                    </div>
+                    <div>
+                        {status_icon} {msg.get('status', '').upper()}
+                    </div>
+                </div>
+"""
+    
+    html += f"""
+            </div>
+            <p style="margin-top: 15px; color: #666; text-align: center;">
+                Mostrando primeiras 20 mensagens de {len(data.get('mensagens_enviadas', []))} total
+            </p>
+        </div>
+        
+        <div class="footer">
+            <p><strong>🏆 Império Prêmios - Sistema de Broadcast WhatsApp</strong></p>
+            <p>Relatório gerado automaticamente pelo OracleWA System</p>
+            <p style="opacity: 0.8;">Instância: {data['detalhes']['instancia']} | Evolution API v2.3.1</p>
+        </div>
+    </div>
+    
+    <script>
+        // Animação dos números
+        document.querySelectorAll('.metric-value').forEach(element => {{
+            const text = element.innerText;
+            if (!isNaN(text.replace(/[^0-9]/g, ''))) {{
+                const number = parseInt(text.replace(/[^0-9]/g, ''));
+                let counter = 0;
+                const interval = setInterval(() => {{
+                    counter += Math.ceil(number / 50);
+                    if (counter >= number) {{
+                        element.innerText = text;
+                        clearInterval(interval);
+                    }} else {{
+                        element.innerText = counter;
+                    }}
+                }}, 20);
+            }}
+        }});
+    </script>
+</body>
+</html>
+"""
+    
+    # Salvar HTML
+    output_file = report_file.replace('.json', '-dashboard.html')
+    with open(output_file, 'w', encoding='utf-8') as f:
+        f.write(html)
+    
+    return output_file
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("❌ Uso: python3 generate-dashboard.py <arquivo-relatorio.json>")
+        sys.exit(1)
+    
+    report_file = sys.argv[1]
+    
+    try:
+        dashboard_file = generate_dashboard_html(report_file)
+        print(f"✅ Dashboard gerado com sucesso!")
+        print(f"📊 Arquivo: {dashboard_file}")
+        print(f"🌐 Abra no navegador para visualizar")
+    except Exception as e:
+        print(f"❌ Erro ao gerar dashboard: {str(e)}")

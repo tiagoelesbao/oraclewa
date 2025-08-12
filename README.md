@@ -52,11 +52,9 @@ graph TB
 
 ### Prerequisites
 
-- Docker & Docker Compose
 - Node.js 18+
-- PostgreSQL 14+
-- Redis 7+
 - Evolution API instance
+- Modern web browser
 
 ### Installation
 
@@ -65,19 +63,43 @@ graph TB
 git clone https://github.com/tiagoelesbao/oraclewa.git
 cd oraclewa
 
-# Install dependencies
-npm install
+# Start the system (automatic dependency installation)
+./start.sh
 
-# Setup environment
-cp .env.example .env
-vi .env
-
-# Start services
-docker-compose up -d
-
-# Add your first client
-./scripts/client-management/add-client.sh myclient "My Company Ltd" all
+# For production deployment
+./start.sh production
 ```
+
+### Unified Script Management
+
+The system now uses a single, powerful script to manage all operations:
+
+```bash
+# Development mode (default) - with hot reload
+./start.sh dev
+
+# Production mode - optimized build
+./start.sh production
+
+# System management
+./start.sh status    # Check service status
+./start.sh health    # Run health checks
+./start.sh stop      # Stop all services
+./start.sh restart   # Restart services
+./start.sh logs      # View real-time logs
+
+# Advanced options
+./start.sh production --build    # Force rebuild
+./start.sh dev --no-deps        # Skip dependency check
+./start.sh help                 # Show all options
+```
+
+### Access Points
+
+Once started, access your system at:
+- **Dashboard**: http://localhost:3001
+- **API**: http://localhost:3000
+- **Health Check**: http://localhost:3000/health
 
 ### Configuration
 

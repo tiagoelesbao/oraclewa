@@ -96,17 +96,17 @@
 
 /* Status indicators */
 .status-online {
-  @apply text-success-700 bg-success-50 ring-success-600/20;
+  @apply text-success-700 bg-success-50;
 }
 
 .status-offline {
-  @apply text-error-700 bg-error-50 ring-error-600/20;
+  @apply text-error-700 bg-error-50;
 }
 
 .status-pending {
-  @apply text-warning-700 bg-warning-50 ring-warning-600/20;
+  @apply text-warning-700 bg-warning-50;
 }
 
 .status-connecting {
-  @apply text-oracle-700 bg-oracle-50 ring-oracle-600/20;
+  @apply text-oracle-700 bg-oracle-50;
 }

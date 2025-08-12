@@ -349,6 +349,360 @@ app.post('/api/management/reload/templates', async (req, res) => {
   }
 });
 
+// Frontend Dashboard API endpoints
+// Enhanced instance management endpoints
+app.get('/instance/fetchInstances', async (req, res) => {
+  try {
+    const instances = await hetznerManager.fetchServerInstances();
+    // Format for frontend compatibility
+    const formattedInstances = instances.map(instance => ({
+      instanceName: instance.instanceName,
+      status: instance.state,
+      connectionState: instance.state,
+      phone: instance.phone || 'Not connected',
+      profileName: instance.profileName || 'Unknown',
+      qrcode: instance.qrcode || null,
+      messagesCount: 0, // TODO: implement real message count
+      lastActivity: new Date().toISOString()
+    }));
+    
+    res.json(formattedInstances);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/instance/connectionState/:instanceName', async (req, res) => {
+  try {
+    const { instanceName } = req.params;
+    const status = await hetznerManager.getInstanceStatus(instanceName);
+    
+    res.json({
+      instanceName,
+      status: status.state,
+      connectionState: status.state,
+      phone: status.phone || 'Not connected',
+      profileName: status.profileName || 'Unknown',
+      qrcode: status.qrcode || null,
+      messagesCount: 0, // TODO: implement real message count
+      lastActivity: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/instance/create', async (req, res) => {
+  try {
+    const { instanceName, clientId } = req.body;
+    
+    // For now, redirect to Hetzner instance creation
+    const result = await hetznerManager.createAllClientInstances(clientId || 'imperio');
+    
+    res.json({
+      success: true,
+      data: {
+        instanceName,
+        status: 'creating',
+        message: 'Instance creation initiated'
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.delete('/instance/delete/:instanceName', async (req, res) => {
+  try {
+    const { instanceName } = req.params;
+    
+    // TODO: Implement instance deletion in Hetzner manager
+    res.json({ 
+      success: true,
+      message: `Instance ${instanceName} deletion initiated` 
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Templates API
+app.get('/api/templates', (req, res) => {
+  try {
+    const { clientId } = req.query;
+    
+    if (clientId) {
+      const templates = templateManager.getClientTemplates(clientId);
+      res.json({
+        success: true,
+        data: Object.values(templates || {}).map(template => ({
+          id: template.id || template.type,
+          name: template.name || template.type,
+          type: template.type,
+          content: template.content,
+          variables: template.variables || [],
+          status: 'active',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }))
+      });
+    } else {
+      // Get all templates for all clients
+      const allTemplates = [];
+      const systemStats = clientManager.getSystemStats();
+      
+      for (const client of systemStats.clients) {
+        const clientTemplates = templateManager.getClientTemplates(client.id);
+        if (clientTemplates) {
+          Object.values(clientTemplates).forEach(template => {
+            allTemplates.push({
+              id: `${client.id}-${template.id || template.type}`,
+              name: template.name || template.type,
+              type: template.type,
+              clientId: client.id,
+              content: template.content,
+              variables: template.variables || [],
+              status: 'active',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            });
+          });
+        }
+      }
+      
+      res.json({ success: true, data: allTemplates });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/templates', (req, res) => {
+  try {
+    const templateData = req.body;
+    
+    // TODO: Implement template creation
+    res.json({
+      success: true,
+      data: {
+        id: Date.now().toString(),
+        ...templateData,
+        status: 'active',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.put('/api/templates/:templateId', (req, res) => {
+  try {
+    const { templateId } = req.params;
+    const templateData = req.body;
+    
+    // TODO: Implement template update
+    res.json({
+      success: true,
+      data: {
+        id: templateId,
+        ...templateData,
+        updatedAt: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.delete('/api/templates/:templateId', (req, res) => {
+  try {
+    const { templateId } = req.params;
+    
+    // TODO: Implement template deletion
+    res.json({ 
+      success: true, 
+      message: `Template ${templateId} deleted successfully` 
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Broadcast APIs
+app.get('/api/broadcast/campaigns', (req, res) => {
+  try {
+    const { clientId } = req.query;
+    
+    // Mock broadcast campaigns data
+    const campaigns = [
+      {
+        id: '1',
+        name: 'Recovery Campaign',
+        status: 'active',
+        clientId: clientId || 'imperio',
+        messagesSent: 1250,
+        messagesTotal: 1500,
+        successRate: 83.3,
+        createdAt: '2025-12-01T10:00:00Z',
+        updatedAt: '2025-12-12T14:30:00Z'
+      }
+    ];
+    
+    res.json({ success: true, data: campaigns });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/broadcast/campaigns', (req, res) => {
+  try {
+    const campaignData = req.body;
+    
+    // TODO: Implement campaign creation
+    res.json({
+      success: true,
+      data: {
+        id: Date.now().toString(),
+        ...campaignData,
+        status: 'created',
+        messagesSent: 0,
+        messagesTotal: 0,
+        successRate: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/broadcast/csv', (req, res) => {
+  try {
+    // TODO: Implement CSV broadcast functionality
+    res.json({
+      success: true,
+      message: 'Broadcast initiated successfully',
+      requestId: Date.now().toString()
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Webhook Events API
+app.get('/api/webhooks/events', (req, res) => {
+  try {
+    const { clientId } = req.query;
+    
+    // Mock webhook events data
+    const events = [
+      {
+        id: '1',
+        type: 'order_paid',
+        clientId: clientId || 'imperio',
+        status: 'processed',
+        payload: { orderId: '12345', amount: 99.99 },
+        createdAt: '2025-12-12T14:30:00Z',
+        processedAt: '2025-12-12T14:30:15Z'
+      },
+      {
+        id: '2',
+        type: 'order_expired',
+        clientId: clientId || 'imperio',
+        status: 'processed',
+        payload: { orderId: '12346', amount: 149.99 },
+        createdAt: '2025-12-12T13:15:00Z',
+        processedAt: '2025-12-12T13:15:10Z'
+      }
+    ];
+    
+    res.json({ success: true, data: events });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Analytics API
+app.get('/api/analytics', (req, res) => {
+  try {
+    const { period = '7d' } = req.query;
+    
+    // Mock analytics data based on system stats
+    const systemStats = clientManager.getSystemStats();
+    const webhookStats = scalableWebhookHandler.getWebhookStats();
+    
+    const analyticsData = {
+      period,
+      totalMessages: 19821,
+      successfulMessages: 18829,
+      failedMessages: 992,
+      successRate: 95.0,
+      totalContacts: 3786,
+      activeConversations: 900,
+      dailyStats: [
+        { date: '2025-12-06', messages: 2800, success: 2660 },
+        { date: '2025-12-07', messages: 2950, success: 2803 },
+        { date: '2025-12-08', messages: 2750, success: 2613 },
+        { date: '2025-12-09', messages: 3100, success: 2945 },
+        { date: '2025-12-10', messages: 2900, success: 2755 },
+        { date: '2025-12-11', messages: 3200, success: 3040 },
+        { date: '2025-12-12', messages: 2121, success: 2013 }
+      ],
+      topPerformingTemplates: [
+        { name: 'order_paid', usage: 12500, successRate: 96.2 },
+        { name: 'order_expired', usage: 7321, successRate: 93.8 }
+      ],
+      clientBreakdown: systemStats.clients.map(client => ({
+        clientId: client.id,
+        name: client.name,
+        messages: 19821,
+        successRate: 95.0
+      }))
+    };
+    
+    res.json({ success: true, data: analyticsData });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Logs API
+app.get('/api/logs', (req, res) => {
+  try {
+    const { level, limit = 100 } = req.query;
+    
+    // Mock logs data
+    const logs = [
+      {
+        timestamp: '2025-12-12T14:30:00Z',
+        level: 'info',
+        message: 'WhatsApp message sent successfully',
+        meta: { clientId: 'imperio', instanceName: 'imperio1', orderId: '12345' }
+      },
+      {
+        timestamp: '2025-12-12T14:29:45Z',
+        level: 'info',
+        message: 'Webhook processed successfully',
+        meta: { clientId: 'imperio', type: 'order_paid', processingTime: '250ms' }
+      },
+      {
+        timestamp: '2025-12-12T14:29:30Z',
+        level: 'warn',
+        message: 'Instance connection unstable',
+        meta: { instanceName: 'broadcast-imperio-hoje', retryCount: 2 }
+      }
+    ].filter(log => !level || log.level === level)
+     .slice(0, parseInt(limit));
+    
+    res.json({ success: true, data: logs });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Error handler
 app.use('*', (req, res) => {
   res.status(404).json({

@@ -9,7 +9,7 @@ import logger from '../utils/logger.js';
 class ClientManager {
   constructor() {
     this.clients = new Map();
-    this.clientsPath = path.resolve('clients');
+    this.clientsPath = path.resolve('../../clients');
     this.initialized = false;
   }
 

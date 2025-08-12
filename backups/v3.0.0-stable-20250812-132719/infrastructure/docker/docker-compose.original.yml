@@ -1,0 +1,179 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: oraclewa-postgres
+    environment:
+      POSTGRES_DB: ${DB_NAME:-oraclewa}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASS:-password}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - oraclewa-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: oraclewa-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - oraclewa-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Evolution API - Instance 1
+  evolution-1:
+    image: atendai/evolution-api:latest
+    container_name: evolution-instance-1
+    environment:
+      - PORT=8080
+      - DATABASE_PROVIDER=postgresql
+      - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASS:-password}@postgres:5432/${DB_NAME:-oraclewa}?schema=evolution1
+      - REDIS_ENABLED=true
+      - REDIS_URI=redis://redis:6379
+      - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY_1:-evolution1-key}
+      - INSTANCE_NAME=instance-1
+    ports:
+      - "${EVOLUTION_INSTANCE_1_PORT:-8081}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - oraclewa-network
+    volumes:
+      - evolution1_data:/evolution/instances
+
+  # Evolution API - Instance 2
+  evolution-2:
+    image: atendai/evolution-api:latest
+    container_name: evolution-instance-2
+    environment:
+      - PORT=8080
+      - DATABASE_PROVIDER=postgresql
+      - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASS:-password}@postgres:5432/${DB_NAME:-oraclewa}?schema=evolution2
+      - REDIS_ENABLED=true
+      - REDIS_URI=redis://redis:6379
+      - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY_2:-evolution2-key}
+      - INSTANCE_NAME=instance-2
+    ports:
+      - "${EVOLUTION_INSTANCE_2_PORT:-8082}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - oraclewa-network
+    volumes:
+      - evolution2_data:/evolution/instances
+
+  # Evolution API - Instance 3
+  evolution-3:
+    image: atendai/evolution-api:latest
+    container_name: evolution-instance-3
+    environment:
+      - PORT=8080
+      - DATABASE_PROVIDER=postgresql
+      - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASS:-password}@postgres:5432/${DB_NAME:-oraclewa}?schema=evolution3
+      - REDIS_ENABLED=true
+      - REDIS_URI=redis://redis:6379
+      - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY_3:-evolution3-key}
+      - INSTANCE_NAME=instance-3
+    ports:
+      - "${EVOLUTION_INSTANCE_3_PORT:-8083}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - oraclewa-network
+    volumes:
+      - evolution3_data:/evolution/instances
+
+  # Evolution API - Instance 4
+  evolution-4:
+    image: atendai/evolution-api:latest
+    container_name: evolution-instance-4
+    environment:
+      - PORT=8080
+      - DATABASE_PROVIDER=postgresql
+      - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASS:-password}@postgres:5432/${DB_NAME:-oraclewa}?schema=evolution4
+      - REDIS_ENABLED=true
+      - REDIS_URI=redis://redis:6379
+      - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY_4:-evolution4-key}
+      - INSTANCE_NAME=instance-4
+    ports:
+      - "${EVOLUTION_INSTANCE_4_PORT:-8084}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - oraclewa-network
+    volumes:
+      - evolution4_data:/evolution/instances
+
+  # OracleWA Application
+  app:
+    build: .
+    container_name: oraclewa-app
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      APP_PORT: ${APP_PORT:-3000}
+      DB_HOST: postgres
+      REDIS_HOST: redis
+      EVOLUTION_API_URL: http://evolution
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      evolution-1:
+        condition: service_started
+      evolution-2:
+        condition: service_started
+      evolution-3:
+        condition: service_started
+      evolution-4:
+        condition: service_started
+    networks:
+      - oraclewa-network
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+
+networks:
+  oraclewa-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  evolution1_data:
+  evolution2_data:
+  evolution3_data:
+  evolution4_data:

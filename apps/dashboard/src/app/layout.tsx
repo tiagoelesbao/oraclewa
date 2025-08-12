@@ -1,7 +1,9 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import Layout from '@/components/layout/Layout';
+import { AppProvider } from '@/contexts/AppContext';
+import { RealTimeProvider } from '@/contexts/RealTimeContext';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -13,7 +15,11 @@ export const metadata: Metadata = {
   creator: 'OracleWA',
   publisher: 'OracleWA',
   robots: 'noindex,nofollow', // Private dashboard
-  viewport: 'width=device-width, initial-scale=1',
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
   themeColor: '#0ea5e9',
 };
 
@@ -25,9 +31,13 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body className={inter.className}>
-        <Layout>
-          {children}
-        </Layout>
+        <AppProvider>
+          <RealTimeProvider>
+            <Layout>
+              {children}
+            </Layout>
+          </RealTimeProvider>
+        </AppProvider>
       </body>
     </html>
   );

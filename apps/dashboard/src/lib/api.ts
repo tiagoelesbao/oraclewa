@@ -46,8 +46,8 @@ class ApiClient {
 
   // System APIs
   async getSystemHealth(): Promise<SystemStats> {
-    const response = await this.client.get<ApiResponse<SystemStats>>('/health');
-    return response.data.data!;
+    const response = await this.client.get('/health');
+    return response.data; // Health endpoint returns direct data, not wrapped
   }
 
   async getSystemDashboard(): Promise<any> {
@@ -57,13 +57,13 @@ class ApiClient {
 
   // Client Management APIs
   async getClients(): Promise<Client[]> {
-    const response = await this.client.get<ApiResponse<{ clients: Client[] }>>('/api/management/clients');
-    return response.data.data?.clients || [];
+    const response = await this.client.get('/api/management/clients');
+    return response.data.clients || [];
   }
 
   async getClient(clientId: string): Promise<Client> {
-    const response = await this.client.get<ApiResponse<Client>>(`/api/management/clients/${clientId}`);
-    return response.data.data!;
+    const response = await this.client.get(`/api/management/clients/${clientId}`);
+    return response.data; // Backend returns direct client object
   }
 
   async createClient(clientData: Partial<Client>): Promise<Client> {

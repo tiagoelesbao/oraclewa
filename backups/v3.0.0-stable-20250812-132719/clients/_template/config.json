@@ -1,0 +1,140 @@
+{
+  "id": "CLIENT_ID",
+  "name": "Client Name",
+  "description": "Description of client services",
+  "status": "active",
+  "provider": "evolution-baileys",
+  "services": [
+    "webhooks",
+    "broadcast"
+  ],
+  "features": {
+    "buttons": false,
+    "lists": false,
+    "media": true,
+    "typing": true,
+    "presence": true,
+    "groups": false,
+    "reactions": false
+  },
+  "limits": {
+    "messagesPerDay": 5000,
+    "messagesPerHour": 500,
+    "instances": 3,
+    "contactsPerInstance": 10000
+  },
+  "billing": {
+    "plan": "professional",
+    "monthlyBudget": 0,
+    "billingCycle": "monthly",
+    "paymentMethod": "pix"
+  },
+  "webhooks": {
+    "orderExpired": {
+      "enabled": true,
+      "url": "https://your-app.railway.app/api/webhook/temp-order-expired",
+      "template": "order_expired",
+      "variations": true,
+      "buttons": true
+    },
+    "orderPaid": {
+      "enabled": true,
+      "url": "https://your-app.railway.app/api/webhook/temp-order-paid",
+      "template": "order_paid", 
+      "variations": true,
+      "buttons": true
+    }
+  },
+  "broadcast": {
+    "enabled": true,
+    "instances": [
+      "broadcast-CLIENT_ID-1",
+      "broadcast-CLIENT_ID-2",
+      "broadcast-CLIENT_ID-3"
+    ],
+    "antibanStrategy": "advanced",
+    "delays": {
+      "min": 90000,
+      "max": 150000
+    },
+    "warmup": {
+      "enabled": true,
+      "messagesPerDay": 50,
+      "daysRequired": 7
+    },
+    "loadBalancing": {
+      "strategy": "round-robin",
+      "maxPerInstance": 350,
+      "dailyLimit": 1000
+    }
+  },
+  "instances": {
+    "CLIENT_ID_main": {
+      "type": "recovery",
+      "provider": "evolution-baileys",
+      "status": "active",
+      "phone": "pending",
+      "description": "Main instance for webhooks"
+    }
+  },
+  "webhookConfig": {
+    "payloadTransformers": {
+      "order_expired": {
+        "userPhone": "data.user.phone",
+        "userName": "data.user.name",
+        "userEmail": "data.user.email",
+        "productTitle": "data.product.title",
+        "orderTotal": "data.total",
+        "orderId": "data.id"
+      },
+      "order_paid": {
+        "userPhone": "data.user.phone", 
+        "userName": "data.user.name",
+        "userEmail": "data.user.email",
+        "productTitle": "data.product.title",
+        "orderTotal": "data.total",
+        "orderId": "data.id"
+      }
+    },
+    "validation": {
+      "requiredFields": ["userPhone", "userName", "productTitle", "orderTotal"],
+      "phoneFormat": "brazilian",
+      "currencyFormat": "BRL"
+    }
+  },
+  "infrastructure": {
+    "servers": {
+      "hetzner": {
+        "ip": "128.140.7.154",
+        "port": 8080,
+        "type": "vps",
+        "location": "germany"
+      },
+      "railway": {
+        "url": "https://your-app.railway.app",
+        "type": "paas",
+        "location": "us-west"
+      }
+    }
+  },
+  "contacts": {
+    "technical": {
+      "name": "Tech Contact",
+      "email": "tech@client.com",
+      "phone": "+5511999999999"
+    },
+    "business": {
+      "name": "Business Contact", 
+      "email": "business@client.com",
+      "phone": "+5511888888888"
+    }
+  },
+  "metadata": {
+    "industry": "e-commerce",
+    "segment": "general",
+    "monthlyVolume": 10000,
+    "averageTicket": 50
+  },
+  "createdAt": "2025-01-10T00:00:00Z",
+  "updatedAt": "2025-01-10T00:00:00Z"
+}

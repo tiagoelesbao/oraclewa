@@ -46,7 +46,7 @@ services:
       retries: 3
 
   # ========================================
-  # Dashboard (Futuro)
+  # Dashboard Frontend
   # ========================================
   dashboard:
     build:
@@ -55,18 +55,18 @@ services:
     container_name: oraclewa-dashboard
     environment:
       - NODE_ENV=development
-      - REACT_APP_API_URL=http://localhost:3000
+      - NEXT_PUBLIC_API_URL=http://localhost:3000
+      - API_BASE_URL=http://api:3000
     ports:
-      - "3001:3000"
+      - "3001:3001"
     volumes:
       - ./apps/dashboard/src:/app/src
+      - ./apps/dashboard/public:/app/public
     networks:
       - oraclewa-dev
     depends_on:
       - api
     restart: unless-stopped
-    profiles:
-      - dashboard
 
   # ========================================
   # Banco de Dados Principal
