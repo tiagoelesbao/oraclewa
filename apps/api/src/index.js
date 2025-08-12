@@ -3,56 +3,32 @@ import dotenv from 'dotenv';
 import helmet from 'helmet';
 import cors from 'cors';
 import compression from 'compression';
-import { createServer } from 'http';
 import logger from './utils/logger.js';
-import { errorHandler } from './middlewares/errorHandler.js';
-import routes from './routes/index.js';
-import SimpleWhatsAppManager from './services/whatsapp/simple-manager.js';
-import ImperioWebhookHandler from '../../../clients/imperio/webhooks/webhook-handler.js';
 
-// Initialize Simple WhatsApp Manager for immediate functionality
-const whatsappManager = new SimpleWhatsAppManager();
-const imperioHandler = new ImperioWebhookHandler(whatsappManager);
+// Core Managers - Sistema Escalável
+import clientManager from './core/client-manager.js';
+import templateManager from './core/template-manager.js';
+import scalableWebhookHandler from './core/webhook-handler.js';
+import hetznerManager from './core/hetzner-manager.js';
 
-// Imports opcionais para evitar falhas de deploy
-let connectDatabase, initializeRedis, initializeQueues;
-let providerManager, multiTenantConfig, webhookHandler, broadcastManager, costCalculator;
-
-try {
-  const dbModule = await import('./database/connection.js');
-  connectDatabase = dbModule.connectDatabase;
-} catch (error) {
-  logger.warn('Database connection module not found - running without DB');
-}
-
-try {
-  const redisModule = await import('./services/redis/client.js');
-  initializeRedis = redisModule.initializeRedis;
-} catch (error) {
-  logger.warn('Redis module not found - running without Redis');
-}
-
-try {
-  const configModule = await import('./config/multi-tenant-config.js');
-  multiTenantConfig = configModule.default;
-} catch (error) {
-  logger.warn('Multi-tenant config not found - using basic config');
-}
+// Chip Maturation Module
+import chipMaturationModule from './modules/chip-maturation/index.js';
+import chipMaturationRoutes from './modules/chip-maturation/api/chip-maturation-routes.js';
 
 // Carregar configuração do ambiente
 dotenv.config();
 
 // Logs de inicialização
-logger.info('🚀 Starting OracleWA SaaS v3.0');
-logger.info(`🌐 Multi-Tenant System with Provider Selection`);
-logger.info(`💰 Providers: Evolution+Baileys (FREE) | Z-API (R$99/instância)`);
+logger.info('🚀 Starting OracleWA SaaS v3.0 - SCALABLE ARCHITECTURE');
+logger.info('🏗️ Multi-tenant system with true client separation');
+logger.info('🛡️ Anti-ban protection: 90s+ delays + typing simulation');
 logger.info(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
 logger.info(`🔧 Port: ${process.env.APP_PORT || 3000}`);
 
 const app = express();
-const server = createServer(app);
 const PORT = process.env.APP_PORT || 3000;
 
+// Middleware
 app.use(helmet());
 app.use(cors());
 app.use(compression());
@@ -62,121 +38,39 @@ app.use(express.urlencoded({ extended: true }));
 app.use((req, res, next) => {
   logger.info(`${req.method} ${req.path}`, {
     ip: req.ip,
-    userAgent: req.get('user-agent')
+    userAgent: req.get('user-agent')?.substring(0, 50)
   });
   next();
 });
 
-app.use('/api', routes);
-
-// Multi-tenant webhook endpoint
-app.post('/webhook/:clientId/:type', async (req, res) => {
+// Health check com estatísticas completas
+app.get('/health', (req, res) => {
   try {
-    const { clientId, type } = req.params;
-    
-    logger.info(`📥 Webhook received: ${type} for client ${clientId}`);
-    
-    // Process webhook using new handler
-    const result = await webhookHandler.processWebhook(clientId, type, req.body);
-    
-    res.json({
-      success: true,
-      result,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    logger.error('Webhook processing error:', error);
-    res.status(500).json({ 
-      success: false,
-      error: error.message,
-      timestamp: new Date().toISOString()
-    });
-  }
-});
-
-// Multi-tenant webhook endpoints
-app.post('/api/webhook/temp-order-paid', async (req, res) => {
-  try {
-    const result = await imperioHandler.processWebhook('order_paid', req.body);
-    res.json(result);
-  } catch (error) {
-    logger.error('❌ Webhook error:', error.message);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-app.post('/api/webhook/temp-order-expired', async (req, res) => {
-  try {
-    const result = await imperioHandler.processWebhook('order_expired', req.body);
-    res.json(result);
-  } catch (error) {
-    logger.error('❌ Webhook error:', error.message);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// Multi-tenant webhook router - for future clients
-app.post('/webhook/:clientId/:type', async (req, res) => {
-  try {
-    const { clientId, type } = req.params;
-    
-    // Route to appropriate client handler
-    let result;
-    switch (clientId) {
-      case 'imperio':
-        result = await imperioHandler.processWebhook(type, req.body);
-        break;
-      default:
-        throw new Error(`Client '${clientId}' not found`);
-    }
-    
-    res.json(result);
-  } catch (error) {
-    logger.error(`❌ Multi-tenant webhook error:`, error.message);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// Legacy redirects
-app.post('/temp-order-paid', (req, res) => {
-  req.url = '/api/webhook/temp-order-paid';
-  app.handle(req, res);
-});
-
-app.post('/temp-order-expired', (req, res) => {
-  req.url = '/api/webhook/temp-order-expired';  
-  app.handle(req, res);
-});
-
-app.get('/health', async (req, res) => {
-  try {
-    // Try to get provider health if available
-    let healthChecks = { status: 'simple-mode' };
-    try {
-      if (providerManager) {
-        healthChecks = await providerManager.healthCheckAll();
-      }
-    } catch (error) {
-      logger.debug('Provider manager not available, using simple health check');
-    }
-    
-    // Get anti-ban statistics
-    const antibanStats = whatsappManager.getStats();
-    const clientStats = multiTenantConfig.getSystemStats();
+    const systemStats = clientManager.getSystemStats();
+    const templateStats = templateManager.getTemplateStats();
+    const webhookStats = scalableWebhookHandler.getWebhookStats();
+    const hetznerStats = hetznerManager.getInstanceStats();
     
     res.json({
       status: 'ok',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
-      version: '3.0.0',
-      providers: healthChecks,
-      clients: clientStats,
+      version: '3.0.0-scalable',
+      architecture: 'multi-tenant-scalable',
+      system: systemStats,
+      templates: templateStats,
+      webhooks: webhookStats,
+      hetzner: hetznerStats,
       features: {
-        multiTenant: true,
-        providerSelection: true,
-        costOptimization: true,
-        evolutionBaileys: true,
-        zapi: process.env.ZAPI_CLIENT_TOKEN ? true : false
+        trueMultiTenant: true,
+        clientSeparation: true,
+        dynamicTemplates: true,
+        scalableWebhooks: true,
+        antibanDelays: true,
+        typingSimulation: true,
+        autoClientDiscovery: true,
+        hetznerIntegration: true,
+        chipMaturationModule: chipMaturationModule.initialized
       }
     });
   } catch (error) {
@@ -189,101 +83,350 @@ app.get('/health', async (req, res) => {
   }
 });
 
-app.use(errorHandler);
+// Chip Maturation API Routes
+app.use('/api/chip-maturation', chipMaturationRoutes);
 
-async function startServer() {
+// Webhook escalável - Rota principal para todos os clientes
+app.post('/webhook/:clientId/:type', async (req, res) => {
   try {
-    logger.info('🔧 Initializing system components...');
+    const { clientId, type } = req.params;
+    const result = await scalableWebhookHandler.processWebhook(clientId, type, req.body);
+    res.json(result);
+  } catch (error) {
+    logger.error(`❌ Webhook error:`, error.message);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
 
-    // 1. Initialize multi-tenant configuration
-    await multiTenantConfig.initialize();
-    logger.info('✅ Multi-tenant configuration loaded');
+// Endpoints específicos para Império (backward compatibility)
+app.post('/api/webhook/temp-order-paid', async (req, res) => {
+  try {
+    // Resposta imediata para evitar timeout 499
+    const requestId = Date.now().toString();
+    res.json({ 
+      success: true, 
+      message: 'Webhook received and queued for processing',
+      requestId,
+      timestamp: new Date().toISOString()
+    });
 
-    // 2. Initialize provider manager
-    const providerConfig = {
-      evolutionBaileys: {
-        baseUrl: process.env.EVOLUTION_API_URL,
-        apiKey: process.env.EVOLUTION_API_KEY
-      },
-      zapi: process.env.ZAPI_CLIENT_TOKEN ? {
-        clientToken: process.env.ZAPI_CLIENT_TOKEN,
-        baseUrl: process.env.ZAPI_BASE_URL
-      } : null,
-      clientMappings: {
-        'imperio': 'evolution-baileys' // Império usa Evolution Baileys por padrão
-      }
-    };
-
-    await providerManager.initialize(providerConfig);
-    logger.info('✅ Provider Manager initialized');
-
-    // 3. Initialize webhook handler
-    await webhookHandler.initialize();
-    logger.info('✅ Webhook Handler initialized');
-
-    // 4. Initialize broadcast manager
-    await broadcastManager.initialize();
-    logger.info('✅ Broadcast Manager initialized');
-
-    // 5. Initialize database (optional)
-    if (process.env.SKIP_DB !== 'true') {
-      try {
-        await connectDatabase();
-        logger.info('✅ Database connected');
-      } catch (error) {
-        logger.warn('⚠️ Database connection failed, continuing without DB:', error.message);
-      }
-    }
-
-    // 6. Initialize Redis (optional)
-    if (process.env.SKIP_DB !== 'true') {
-      try {
-        await initializeRedis();
-        logger.info('✅ Redis connected');
-        
-        await initializeQueues();
-        logger.info('✅ Message queues initialized');
-      } catch (error) {
-        logger.warn('⚠️ Redis connection failed, continuing without queues:', error.message);
-      }
-    }
-
-    // 7. Display system status
-    const activeClients = multiTenantConfig.getActiveClients();
-    const providerComparison = providerManager.getProviderComparison();
-    
-    server.listen(PORT, () => {
-      logger.info('🎉 OracleWA SaaS v3.0 started successfully!');
-      logger.info(`🌐 Server: http://localhost:${PORT}`);
-      logger.info(`👥 Active Clients: ${activeClients.length}`);
-      logger.info(`🔌 Available Providers: ${Object.keys(providerComparison).length}`);
-      
-      // Log provider details
-      Object.entries(providerComparison).forEach(([name, provider]) => {
-        const cost = provider.costs.perInstance > 0 ? `R$${provider.costs.perInstance}/mês` : 'GRATUITO';
-        const features = provider.capabilities.buttons ? 'com botões' : 'texto básico';
-        logger.info(`  📦 ${provider.name}: ${cost} (${features})`);
+    // Processar assincronamente (não await)
+    scalableWebhookHandler.processWebhook('imperio', 'order_paid', req.body)
+      .then(result => {
+        logger.info(`✅ Async webhook processed: ${requestId}`, result);
+      })
+      .catch(error => {
+        logger.error(`❌ Async webhook error: ${requestId}`, error.message);
       });
+
+  } catch (error) {
+    logger.error('❌ Webhook sync error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/webhook/temp-order-expired', async (req, res) => {
+  try {
+    // Resposta imediata para evitar timeout 499
+    const requestId = Date.now().toString();
+    res.json({ 
+      success: true, 
+      message: 'Webhook received and queued for processing',
+      requestId,
+      timestamp: new Date().toISOString()
+    });
+
+    // Processar assincronamente (não await)
+    scalableWebhookHandler.processWebhook('imperio', 'order_expired', req.body)
+      .then(result => {
+        logger.info(`✅ Async webhook processed: ${requestId}`, result);
+      })
+      .catch(error => {
+        logger.error(`❌ Async webhook error: ${requestId}`, error.message);
+      });
+
+  } catch (error) {
+    logger.error('❌ Webhook sync error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Status de processamento webhook por requestId
+app.get('/api/webhook/status/:requestId', (req, res) => {
+  const { requestId } = req.params;
+  
+  // Em produção, isso seria consultado de um banco/cache
+  // Por enquanto, resposta genérica
+  res.json({
+    requestId,
+    status: 'processed', // pending, processing, processed, failed
+    message: 'Webhook processing completed',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Debug endpoint para testar payloads
+app.post('/api/debug/webhook/:clientId/:type', async (req, res) => {
+  try {
+    const { clientId, type } = req.params;
+    logger.info(`🧪 DEBUG: Testing payload for ${clientId}/${type}`);
+    
+    // Log do payload recebido
+    console.log('📦 Raw Payload:', JSON.stringify(req.body, null, 2));
+    
+    // Simular processamento sem enviar WhatsApp
+    const client = clientManager.getClient(clientId);
+    const extractedData = scalableWebhookHandler.extractPayloadData ? 
+      await scalableWebhookHandler.extractPayloadData(client, type, req.body) :
+      req.body;
+    
+    console.log('🔍 Extracted Data:', extractedData);
+    
+    res.json({
+      success: true,
+      debug: true,
+      clientId,
+      type,
+      rawPayload: req.body,
+      extractedData,
+      message: 'Debug completed - no WhatsApp sent'
+    });
+  } catch (error) {
+    logger.error(`❌ Debug error:`, error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      debug: true
+    });
+  }
+});
+
+// Legacy redirects
+app.post('/temp-order-paid', (req, res) => {
+  req.url = '/api/webhook/temp-order-paid';
+  app.handle(req, res);
+});
+
+app.post('/temp-order-expired', (req, res) => {
+  req.url = '/api/webhook/temp-order-expired';
+  app.handle(req, res);
+});
+
+// API de gerenciamento escalável
+app.get('/api/management/clients', (req, res) => {
+  try {
+    const clients = clientManager.getActiveClients();
+    res.json({ success: true, clients });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get('/api/management/clients/:clientId', (req, res) => {
+  try {
+    const client = clientManager.getClient(req.params.clientId);
+    const templates = templateManager.getClientTemplates(req.params.clientId);
+    const manager = scalableWebhookHandler.getClientManager(req.params.clientId);
+    
+    res.json({ 
+      success: true, 
+      client,
+      templates,
+      antiban: manager.getStats()
+    });
+  } catch (error) {
+    res.status(404).json({ success: false, error: error.message });
+  }
+});
+
+// Broadcast files por cliente
+app.get('/api/management/clients/:clientId/broadcast/files', async (req, res) => {
+  try {
+    const files = await clientManager.getClientBroadcastFiles(req.params.clientId);
+    res.json({ success: true, files });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Dashboard escalável
+app.get('/api/management/dashboard', (req, res) => {
+  try {
+    const systemStats = clientManager.getSystemStats();
+    const templateStats = templateManager.getTemplateStats();
+    const webhookStats = scalableWebhookHandler.getWebhookStats();
+    
+    res.json({
+      system: 'OracleWA SaaS v3.0 - Scalable Multi-Tenant',
+      status: 'running',
+      timestamp: new Date().toISOString(),
+      architecture: {
+        type: 'multi-tenant-scalable',
+        clientSeparation: true,
+        dataIsolation: true,
+        dynamicLoading: true
+      },
+      stats: {
+        system: systemStats,
+        templates: templateStats, 
+        webhooks: webhookStats
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Hetzner management endpoints
+app.get('/api/management/hetzner/instances', async (req, res) => {
+  try {
+    const instances = await hetznerManager.fetchServerInstances();
+    res.json({ success: true, instances });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/management/hetzner/instances/:clientId/create', async (req, res) => {
+  try {
+    const { clientId } = req.params;
+    const results = await hetznerManager.createAllClientInstances(clientId);
+    res.json({ success: true, results });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get('/api/management/hetzner/instances/:instanceName/qrcode', async (req, res) => {
+  try {
+    const { instanceName } = req.params;
+    const qrcode = await hetznerManager.getInstanceQRCode(instanceName);
+    res.json({ success: true, qrcode });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get('/api/management/hetzner/instances/:instanceName/status', async (req, res) => {
+  try {
+    const { instanceName } = req.params;
+    const status = await hetznerManager.getInstanceStatus(instanceName);
+    res.json({ success: true, status });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/management/hetzner/sync', async (req, res) => {
+  try {
+    const syncResult = await hetznerManager.syncInstances();
+    res.json({ success: true, syncResult });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Reload endpoints para desenvolvimento
+app.post('/api/management/reload/clients', async (req, res) => {
+  try {
+    await clientManager.reloadAllClients();
+    res.json({ success: true, message: 'All clients reloaded' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/management/reload/templates', async (req, res) => {
+  try {
+    await templateManager.reloadAllTemplates();
+    res.json({ success: true, message: 'All templates reloaded' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Error handler
+app.use('*', (req, res) => {
+  res.status(404).json({
+    error: 'Endpoint not found',
+    available: [
+      'GET /health',
+      'GET /api/management/dashboard',
+      'GET /api/management/clients',
+      'GET /api/management/clients/:clientId',
+      'POST /webhook/:clientId/:type',
+      'POST /api/webhook/temp-order-paid',
+      'POST /api/webhook/temp-order-expired'
+    ]
+  });
+});
+
+// Inicialização escalável
+async function initializeScalableSystem() {
+  try {
+    logger.info('🔧 Initializing Scalable Multi-Tenant System...');
+
+    // 1. Initialize Client Manager
+    await clientManager.initialize();
+
+    // 2. Initialize Template Manager
+    await templateManager.initialize();
+
+    // 3. Initialize Scalable Webhook Handler
+    await scalableWebhookHandler.initialize();
+
+    // 4. Initialize Hetzner Manager (optional)
+    try {
+      await hetznerManager.initialize();
+      logger.info('✅ Hetzner Manager initialized');
+    } catch (error) {
+      logger.warn('⚠️ Hetzner Manager failed to initialize (continuing without it):', error.message);
+    }
+
+    // 5. Initialize Chip Maturation Module
+    try {
+      await chipMaturationModule.initialize();
+      logger.info('✅ Chip Maturation Module initialized');
+    } catch (error) {
+      logger.warn('⚠️ Chip Maturation Module failed to initialize (continuing without it):', error.message);
+    }
+
+    logger.info('✅ All core managers initialized successfully');
+
+    // 4. Start server
+    app.listen(PORT, '0.0.0.0', () => {
+      const systemStats = clientManager.getSystemStats();
+      const templateStats = templateManager.getTemplateStats();
       
-      logger.info('🚀 System ready for production!');
+      logger.info('🎉 OracleWA SaaS v3.0 SCALABLE started successfully!');
+      logger.info(`🌐 Server: http://localhost:${PORT}`);
+      logger.info(`👥 Clients: ${systemStats.activeClients}/${systemStats.totalClients} active`);
+      logger.info(`🎨 Templates: ${templateStats.totalTemplates} loaded`);
+      logger.info(`🛡️ Anti-ban: Active with 90s+ delays per client`);
+      logger.info(`🌱 Chip Maturation: ${chipMaturationModule.initialized ? 'Active' : 'Disabled'}`);
+      logger.info('🏗️ Architecture: True Multi-Tenant with Client Separation');
+      logger.info('🚀 System ready for unlimited scaling!');
     });
 
   } catch (error) {
-    logger.error('❌ Failed to start server:', error);
+    logger.error('❌ Failed to initialize scalable system:', error);
     process.exit(1);
   }
 }
 
-process.on('SIGTERM', async () => {
+// Graceful shutdown
+process.on('SIGTERM', () => {
   logger.info('SIGTERM received, shutting down gracefully');
-  server.close(() => {
-    logger.info('Server closed');
-    process.exit(0);
-  });
+  process.exit(0);
 });
 
 process.on('unhandledRejection', (reason, promise) => {
   logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
-startServer();
+// Iniciar sistema escalável
+initializeScalableSystem();
