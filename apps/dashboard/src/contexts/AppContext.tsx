@@ -17,6 +17,7 @@ export interface Client {
 export interface Instance {
   id: string;
   name: string;
+  instanceName?: string; // Para compatibilidade com QRCodeModal
   clientId: string;
   status: 'connected' | 'disconnected' | 'connecting' | 'warming' | 'error';
   provider: 'evolution' | 'baileys' | 'zapi';
@@ -27,6 +28,7 @@ export interface Instance {
   maturationLevel: 'new' | 'warming' | 'mature';
   dailyLimit: number;
   antibanSettings: AntibanSettings;
+  functionType: 'webhook' | 'broadcast' | 'support'; // Função da instância
 }
 
 export interface AntibanSettings {
@@ -283,6 +285,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         ...instanceData,
         id: response.instanceName || instanceData.name,
         messagesCount: 0,
+        lastActivity: new Date().toISOString(),
+        maturationLevel: 'warming',
+        phone: '',
         antibanSettings: { ...defaultAntibanSettings, ...instanceData.antibanSettings },
       };
       
@@ -302,13 +307,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const connectInstance = async (id: string): Promise<void> => {
     setState(prev => ({ ...prev, loading: true, error: null }));
     try {
-      // Get QR code from backend
-      const qrResponse = await api.getInstanceQRCode(id);
+      // Para Evolution API, apenas marcar como connecting
+      // O QR Code será buscado pelo modal
       setState(prev => ({
         ...prev,
         instances: prev.instances.map(i => 
           i.id === id 
-            ? { ...i, status: 'connecting', qrCode: qrResponse.qrcode }
+            ? { ...i, status: 'connecting' }
             : i
         ),
         loading: false,
@@ -554,18 +559,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const formattedInstances = instancesRes.map((instance: any) => ({
         id: instance.instanceName,
         name: instance.instanceName,
-        clientId: instance.instanceName.includes('imperio') ? 'imperio' : 'demo',
-        status: instance.status === 'open' ? 'connected' : 
-                instance.connectionState === 'connecting' ? 'connecting' : 'disconnected',
-        provider: 'evolution' as const,
-        phone: instance.phone || instance.owner,
+        instanceName: instance.instanceName, // Para o QRCodeModal
+        clientId: instance.instanceName.includes('imperio') ? 'imperio' : 
+                 instance.instanceName.includes('broadcast') ? 'imperio' : 'demo',
+        status: instance.status || 'disconnected',
+        provider: instance.provider || 'evolution' as const,
+        phone: instance.phone,
         qrCode: instance.qrcode,
         messagesCount: instance.messagesCount || 0,
         lastActivity: new Date(instance.lastActivity || Date.now()),
-        maturationLevel: instance.messagesCount > 100 ? 'mature' : 
-                        instance.messagesCount > 10 ? 'warming' : 'new',
-        dailyLimit: instance.messagesCount > 100 ? 100 : 50,
+        maturationLevel: instance.maturationLevel || 'new',
+        dailyLimit: instance.dailyLimit || 100,
         antibanSettings: defaultAntibanSettings,
+        functionType: instance.functionType || 'webhook' as const,
       }));
 
       const formattedCampaigns = campaignsRes.map((campaign: any) => ({
@@ -690,6 +696,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         {
           id: 'imperio1',
           name: 'imperio1',
+          instanceName: 'imperio1',
           clientId: 'imperio',
           status: 'connected',
           provider: 'evolution',
@@ -699,6 +706,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           maturationLevel: 'mature',
           dailyLimit: 100,
           antibanSettings: defaultAntibanSettings,
+          functionType: 'webhook',
         },
         {
           id: 'broadcast-imperio-hoje',

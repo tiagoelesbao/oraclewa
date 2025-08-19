@@ -54,6 +54,28 @@ export function getStatusColor(status: string): string {
   return statusColors[status.toLowerCase()] || 'text-gray-600 bg-gray-50';
 }
 
+export function getStatusVariant(status: string): 'default' | 'success' | 'warning' | 'error' | 'info' | 'secondary' {
+  const statusVariants: Record<string, 'default' | 'success' | 'warning' | 'error' | 'info' | 'secondary'> = {
+    active: 'success',
+    open: 'success',
+    connected: 'success',
+    completed: 'success',
+    inactive: 'secondary',
+    disconnected: 'secondary',
+    close: 'error',
+    suspended: 'error',
+    failed: 'error',
+    error: 'error',
+    pending: 'warning',
+    warming: 'warning',
+    connecting: 'info',
+    running: 'info',
+    draft: 'default',
+  };
+
+  return statusVariants[status.toLowerCase()] || 'default';
+}
+
 export function getStatusIcon(status: string): string {
   const statusIcons: Record<string, string> = {
     active: '🟢',

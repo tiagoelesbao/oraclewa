@@ -65,10 +65,10 @@ export default function BroadcastPage() {
     }
   };
 
-  const getStatusColor = (status: string): 'success' | 'warning' | 'error' | 'primary' | 'secondary' => {
+  const getStatusColor = (status: string): 'success' | 'warning' | 'error' | 'info' | 'secondary' => {
     switch (status) {
       case 'completed': return 'success';
-      case 'running': return 'primary';
+      case 'running': return 'info';
       case 'paused': return 'warning';
       case 'cancelled':
       case 'error': return 'error';

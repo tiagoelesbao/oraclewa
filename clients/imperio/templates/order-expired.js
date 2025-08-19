@@ -13,7 +13,7 @@ Seu pedido do produto *${productName}* no valor de *R$ ${total}* expirou.
 ⚠️ Concorra a *R$ 100.000,00 pela Federal!*
 🗂️ *Garanta agora:*
 
-👉 https://imperiopremioss.com/campanha/rapidinha-valendo-1200000-mil-em-premiacoes?&afiliado=A0RJJ5L1QK
+👉 https://imperiopremioss.com/campanha/rapidinha-valendo-120-mil-em-premiacoes?&afiliado=A0RJJ5L1QK
 
 *Império Prêmios* 🏆
 _O tempo está acabando..._`;

@@ -1,8 +1,11 @@
 import express from 'express';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
 import dotenv from 'dotenv';
 import helmet from 'helmet';
 import cors from 'cors';
 import compression from 'compression';
+import axios from 'axios';
 import logger from './utils/logger.js';
 
 // Core Managers - Sistema Escalável
@@ -23,14 +26,49 @@ logger.info('🚀 Starting OracleWA SaaS v3.0 - SCALABLE ARCHITECTURE');
 logger.info('🏗️ Multi-tenant system with true client separation');
 logger.info('🛡️ Anti-ban protection: 90s+ delays + typing simulation');
 logger.info(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-logger.info(`🔧 Port: ${process.env.APP_PORT || 3000}`);
+logger.info(`🔧 Port: ${process.env.APP_PORT || 3333}`);
 
 const app = express();
-const PORT = process.env.APP_PORT || 3000;
+const server = createServer(app);
+const PORT = process.env.APP_PORT || 3333;
+
+// Configure Socket.IO
+const io = new Server(server, {
+  cors: {
+    origin: ['http://localhost:3001', 'http://localhost:3333'],
+    methods: ['GET', 'POST'],
+    credentials: true
+  },
+  transports: ['websocket', 'polling']
+});
+
+// WebSocket connection handling
+io.on('connection', (socket) => {
+  logger.info(`🔌 Client connected: ${socket.id}`);
+  
+  socket.on('join-room', (room) => {
+    socket.join(room);
+    logger.info(`📡 Client ${socket.id} joined room: ${room}`);
+  });
+  
+  socket.on('disconnect', () => {
+    logger.info(`🔌 Client disconnected: ${socket.id}`);
+  });
+});
+
+// Export io for use in other modules
+export { io };
 
 // Middleware
-app.use(helmet());
-app.use(cors());
+app.use(helmet({
+  crossOriginResourcePolicy: false,
+}));
+app.use(cors({
+  origin: ['http://localhost:3001', 'http://localhost:3333', '*'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'apikey']
+}));
 app.use(compression());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -220,7 +258,24 @@ app.post('/temp-order-expired', (req, res) => {
 app.get('/api/management/clients', (req, res) => {
   try {
     const clients = clientManager.getActiveClients();
-    res.json({ success: true, clients });
+    
+    // Adicionar informações das instâncias aos clientes
+    const clientsWithDetails = clients.map(client => ({
+      id: client.id,
+      name: client.name || 'Império Prêmios',
+      description: client.description || 'Cliente de recuperação de vendas',
+      status: 'active',
+      createdAt: new Date('2024-01-15').toISOString(),
+      settings: {
+        timezone: 'America/Sao_Paulo',
+        antibanStrategy: 'conti_chips',
+        maxInstancesAllowed: 10,
+        webhookUrl: client.webhookUrl || `https://oraclewa-imperio-production.up.railway.app/webhook/${client.id}`,
+        notificationEmail: client.email || 'admin@imperio.com'
+      }
+    }));
+    
+    res.json({ success: true, clients: clientsWithDetails });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -301,6 +356,83 @@ app.post('/api/management/hetzner/instances/:clientId/create', async (req, res) 
   }
 });
 
+// QR Code direto do Evolution API
+app.get('/api/instances/:instanceName/qrcode', async (req, res) => {
+  try {
+    const { instanceName } = req.params;
+    
+    // Buscar QR Code diretamente do Evolution API
+    const evolutionUrl = process.env.EVOLUTION_API_URL || 'http://128.140.7.154:8080';
+    const evolutionApiKey = process.env.EVOLUTION_API_KEY || 'Imperio2024@EvolutionSecure';
+    
+    const response = await axios.get(`${evolutionUrl}/instance/connect/${instanceName}`, {
+      headers: {
+        'apikey': evolutionApiKey,
+        'Content-Type': 'application/json'
+      },
+      timeout: 30000
+    });
+    
+    const data = response.data;
+    
+    // Emit real-time update
+    io.emit('qrcode-generated', {
+      instanceName,
+      qrcode: data.base64,
+      timestamp: new Date().toISOString()
+    });
+    
+    res.json({ 
+      success: true, 
+      qrcode: data.base64 || null,
+      pairingCode: data.pairingCode || null,
+      instanceName 
+    });
+  } catch (error) {
+    logger.error(`QR Code error for ${req.params.instanceName}:`, error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Status da instância direto do Evolution API
+app.get('/api/instances/:instanceName/status', async (req, res) => {
+  try {
+    const { instanceName } = req.params;
+    
+    const evolutionUrl = process.env.EVOLUTION_API_URL || 'http://128.140.7.154:8080';
+    const evolutionApiKey = process.env.EVOLUTION_API_KEY || 'Imperio2024@EvolutionSecure';
+    
+    const response = await axios.get(`${evolutionUrl}/instance/connectionState/${instanceName}`, {
+      headers: {
+        'apikey': evolutionApiKey,
+        'Content-Type': 'application/json'
+      },
+      timeout: 15000
+    });
+    
+    const data = response.data;
+    const status = data.instance?.state || 'unknown';
+    
+    // Emit real-time status update
+    io.emit('instance-status-updated', {
+      instanceName,
+      status,
+      data,
+      timestamp: new Date().toISOString()
+    });
+    
+    res.json({ 
+      success: true, 
+      status: status,
+      instanceName,
+      data
+    });
+  } catch (error) {
+    logger.error(`Status error for ${req.params.instanceName}:`, error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 app.get('/api/management/hetzner/instances/:instanceName/qrcode', async (req, res) => {
   try {
     const { instanceName } = req.params;
@@ -353,21 +485,67 @@ app.post('/api/management/reload/templates', async (req, res) => {
 // Enhanced instance management endpoints
 app.get('/instance/fetchInstances', async (req, res) => {
   try {
-    const instances = await hetznerManager.fetchServerInstances();
-    // Format for frontend compatibility
-    const formattedInstances = instances.map(instance => ({
-      instanceName: instance.instanceName,
-      status: instance.state,
-      connectionState: instance.state,
-      phone: instance.phone || 'Not connected',
-      profileName: instance.profileName || 'Unknown',
-      qrcode: instance.qrcode || null,
-      messagesCount: 0, // TODO: implement real message count
-      lastActivity: new Date().toISOString()
-    }));
+    // Buscar instâncias diretamente do Evolution API
+    const evolutionUrl = process.env.EVOLUTION_API_URL || 'http://128.140.7.154:8080';
+    const evolutionApiKey = process.env.EVOLUTION_API_KEY || 'Imperio2024@EvolutionSecure';
+    
+    const response = await axios.get(`${evolutionUrl}/instance/fetchInstances`, {
+      headers: {
+        'apikey': evolutionApiKey,
+        'Content-Type': 'application/json'
+      },
+      timeout: 15000
+    });
+    
+    // Formatar para o frontend
+    const instances = response.data || [];
+    
+    // Não filtrar mais - mostrar todas as instâncias
+    const filteredInstances = instances.map(instance => instance);
+    
+    logger.info(`📱 Found ${filteredInstances.length} instances in Evolution API`);
+    
+    const formattedInstances = filteredInstances.map(instance => {
+      // Verificar status real: se tem disconnectionAt, está desconectado
+      let realStatus = 'disconnected';
+      if (instance.connectionStatus === 'open') {
+        realStatus = 'connected';
+      } else if (instance.disconnectionAt || instance.disconnectionReasonCode) {
+        realStatus = 'disconnected';
+      } else if (instance.connectionStatus === 'connecting') {
+        realStatus = 'connecting';
+      }
+      
+      // Determinar função da instância baseado no nome
+      let functionType = 'webhook'; // Padrão
+      if (instance.name.includes('broadcast')) {
+        functionType = 'broadcast';
+      } else if (instance.name.includes('support') || instance.name.includes('suporte')) {
+        functionType = 'support';
+      }
+
+      return {
+        instanceName: instance.name || instance.instanceName,
+        status: realStatus,
+        connectionState: instance.connectionStatus || 'unknown',
+        phone: instance.ownerJid ? instance.ownerJid.replace('@s.whatsapp.net', '') : null,
+        profileName: instance.profileName || instance.name,
+        qrcode: null, // QR code deve ser buscado separadamente
+        messagesCount: instance._count?.Message || 0,
+        lastActivity: instance.updatedAt || new Date().toISOString(),
+        provider: 'evolution',
+        maturationLevel: (instance._count?.Message || 0) > 1000 ? 'mature' : 
+                         (instance._count?.Message || 0) > 100 ? 'warming' : 'new',
+        dailyLimit: 100,
+        disconnectedAt: instance.disconnectionAt,
+        disconnectionReason: instance.disconnectionReasonCode,
+        functionType: functionType
+      };
+    });
     
     res.json(formattedInstances);
   } catch (error) {
+    logger.error('Error fetching instances:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -396,19 +574,85 @@ app.post('/instance/create', async (req, res) => {
   try {
     const { instanceName, clientId } = req.body;
     
-    // For now, redirect to Hetzner instance creation
-    const result = await hetznerManager.createAllClientInstances(clientId || 'imperio');
+    if (!instanceName) {
+      return res.status(400).json({
+        success: false,
+        error: 'instanceName is required'
+      });
+    }
     
-    res.json({
-      success: true,
-      data: {
+    // Create instance directly in Evolution API
+    const evolutionUrl = process.env.EVOLUTION_API_URL || 'http://128.140.7.154:8080';
+    const evolutionApiKey = process.env.EVOLUTION_API_KEY || 'Imperio2024@EvolutionSecure';
+    
+    logger.info(`🔧 Creating instance: ${instanceName} for client: ${clientId || 'default'}`);
+    
+    logger.info(`🔧 Attempting to create instance with Evolution API at ${evolutionUrl}`);
+    
+    const payload = {
+      instanceName: instanceName,
+      integration: 'WHATSAPP-BAILEYS',
+      qrcode: true
+    };
+    
+    logger.info(`📤 Payload:`, JSON.stringify(payload, null, 2));
+    
+    const createResponse = await axios.post(`${evolutionUrl}/instance/create`, payload, {
+      headers: {
+        'apikey': evolutionApiKey,
+        'Content-Type': 'application/json'
+      },
+      timeout: 30000
+    });
+    
+    logger.info(`✅ Evolution API Response:`, JSON.stringify(createResponse.data, null, 2));
+    
+    if (createResponse.data) {
+      logger.info(`✅ Instance ${instanceName} created successfully`);
+      
+      // Emit real-time update
+      io.emit('instance-created', {
         instanceName,
-        status: 'creating',
-        message: 'Instance creation initiated'
+        clientId: clientId || 'imperio',
+        status: 'disconnected',
+        timestamp: new Date().toISOString()
+      });
+      
+      res.json({
+        success: true,
+        data: {
+          instanceName,
+          status: 'disconnected',
+          message: 'Instance created successfully',
+          evolutionData: createResponse.data
+        }
+      });
+    } else {
+      throw new Error('Failed to create instance in Evolution API');
+    }
+    
+  } catch (error) {
+    logger.error(`❌ Error creating instance: ${error.message}`);
+    logger.error(`📊 Error details:`, {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      config: {
+        url: error.config?.url,
+        method: error.config?.method,
+        headers: error.config?.headers
       }
     });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    
+    const errorMessage = error.response?.data?.message || 
+                        error.response?.data?.error || 
+                        error.message;
+    
+    res.status(500).json({ 
+      success: false, 
+      error: errorMessage,
+      details: error.response?.data || null
+    });
   }
 });
 
@@ -416,13 +660,348 @@ app.delete('/instance/delete/:instanceName', async (req, res) => {
   try {
     const { instanceName } = req.params;
     
-    // TODO: Implement instance deletion in Hetzner manager
+    const evolutionUrl = process.env.EVOLUTION_API_URL || 'http://128.140.7.154:8080';
+    const evolutionApiKey = process.env.EVOLUTION_API_KEY || 'Imperio2024@EvolutionSecure';
+    
+    logger.info(`🗑️ Deleting instance: ${instanceName}`);
+    
+    // Delete instance in Evolution API
+    const deleteResponse = await axios.delete(`${evolutionUrl}/instance/delete/${instanceName}`, {
+      headers: {
+        'apikey': evolutionApiKey,
+        'Content-Type': 'application/json'
+      },
+      timeout: 15000
+    });
+    
+    logger.info(`✅ Instance ${instanceName} deleted successfully`);
+    
+    // Emit real-time update
+    io.emit('instance-deleted', {
+      instanceName,
+      timestamp: new Date().toISOString()
+    });
+    
     res.json({ 
       success: true,
-      message: `Instance ${instanceName} deletion initiated` 
+      message: `Instance ${instanceName} deleted successfully`,
+      data: deleteResponse.data
     });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    logger.error(`❌ Error deleting instance ${req.params.instanceName}:`, error.message);
+    res.status(500).json({ 
+      success: false, 
+      error: error.response?.data?.message || error.message 
+    });
+  }
+});
+
+// Instance Settings API
+app.put('/api/instances/:instanceName/settings', async (req, res) => {
+  try {
+    const { instanceName } = req.params;
+    const settings = req.body;
+    
+    logger.info(`🔧 Updating settings for instance: ${instanceName}`);
+    
+    // Store settings in a configuration map (you can persist this to a database)
+    if (!global.instanceSettings) {
+      global.instanceSettings = new Map();
+    }
+    
+    global.instanceSettings.set(instanceName, {
+      ...settings,
+      updatedAt: new Date().toISOString()
+    });
+    
+    // Update Evolution API settings if needed
+    if (settings.webhookUrl) {
+      const evolutionUrl = process.env.EVOLUTION_API_URL || 'http://128.140.7.154:8080';
+      const evolutionApiKey = process.env.EVOLUTION_API_KEY || 'Imperio2024@EvolutionSecure';
+      
+      try {
+        await axios.put(`${evolutionUrl}/instance/updateSettings/${instanceName}`, {
+          webhook: {
+            url: settings.webhookUrl,
+            by_events: true
+          }
+        }, {
+          headers: {
+            'apikey': evolutionApiKey,
+            'Content-Type': 'application/json'
+          }
+        });
+      } catch (error) {
+        logger.warn(`⚠️ Could not update Evolution API settings: ${error.message}`);
+      }
+    }
+    
+    // Emit real-time update
+    io.emit('instance-settings-updated', {
+      instanceName,
+      settings,
+      timestamp: new Date().toISOString()
+    });
+    
+    res.json({
+      success: true,
+      data: {
+        instanceName,
+        settings,
+        updatedAt: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    logger.error(`❌ Error updating instance settings: ${error.message}`);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+app.get('/api/instances/:instanceName/settings', async (req, res) => {
+  try {
+    const { instanceName } = req.params;
+    
+    // Get settings from configuration map
+    const settings = global.instanceSettings?.get(instanceName) || {
+      antibanSettings: {
+        strategy: 'conti_chips',
+        delayMin: 30000,
+        delayMax: 120000,
+        dailyLimit: 100,
+        hourlyLimit: 15,
+        batchSize: 10,
+        pauseBetweenBatches: 15,
+        respectWarmupPeriod: true
+      },
+      functionType: 'broadcast',
+      typingSimulation: true,
+      onlinePresence: true,
+      autoReconnect: true,
+      messageQueue: true
+    };
+    
+    res.json({
+      success: true,
+      data: settings
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      error: error.message
+    });
+  }
+});
+
+// Templates Management API
+app.get('/api/templates', async (req, res) => {
+  try {
+    const fs = await import('fs');
+    const path = await import('path');
+    const { fileURLToPath } = await import('url');
+    
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    const clientsDir = path.resolve(__dirname, '../../../clients');
+    
+    logger.info(`📂 Looking for templates in: ${clientsDir}`);
+    
+    const templates = [];
+    
+    // Read all client directories
+    const clients = fs.readdirSync(clientsDir);
+    
+    for (const clientName of clients) {
+      if (clientName.startsWith('.') || clientName === '_template') continue;
+      
+      const templatesDir = path.join(clientsDir, clientName, 'templates');
+      
+      if (fs.existsSync(templatesDir)) {
+        const templateFiles = fs.readdirSync(templatesDir);
+        
+        for (const file of templateFiles) {
+          if (file.endsWith('.js')) {
+            const templatePath = path.join(templatesDir, file);
+            const content = fs.readFileSync(templatePath, 'utf8');
+            const templateType = file.replace('.js', '');
+            
+            templates.push({
+              id: `${clientName}-${templateType}`,
+              client: clientName,
+              type: templateType,
+              name: templateType.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+              category: templateType.includes('paid') ? 'Notificação' : 
+                       templateType.includes('expired') ? 'Recuperação' : 'Marketing',
+              content: content,
+              filePath: templatePath,
+              lastModified: fs.statSync(templatePath).mtime.toISOString()
+            });
+          }
+        }
+        
+        // Check for variations directory
+        const variationsDir = path.join(templatesDir, 'variations');
+        if (fs.existsSync(variationsDir)) {
+          const variationFiles = fs.readdirSync(variationsDir);
+          
+          for (const file of variationFiles) {
+            if (file.endsWith('.js')) {
+              const templatePath = path.join(variationsDir, file);
+              const content = fs.readFileSync(templatePath, 'utf8');
+              const templateType = file.replace('-variations.js', '');
+              
+              templates.push({
+                id: `${clientName}-${templateType}-variations`,
+                client: clientName,
+                type: `${templateType}-variations`,
+                name: `${templateType.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} (Variações)`,
+                category: 'Variações',
+                content: content,
+                filePath: templatePath,
+                lastModified: fs.statSync(templatePath).mtime.toISOString()
+              });
+            }
+          }
+        }
+      }
+    }
+    
+    res.json({
+      success: true,
+      data: templates
+    });
+  } catch (error) {
+    logger.error(`❌ Error loading templates: ${error.message}`);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message
+    });
+  }
+});
+
+app.get('/api/templates/:templateId', async (req, res) => {
+  try {
+    const { templateId } = req.params;
+    const fs = await import('fs');
+    const path = await import('path');
+    const { fileURLToPath } = await import('url');
+    
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    const clientsDir = path.resolve(__dirname, '../../../clients');
+    
+    // Parse template ID (format: clientName-templateType or clientName-templateType-variations)
+    const parts = templateId.split('-');
+    const clientName = parts[0];
+    const isVariation = parts[parts.length - 1] === 'variations';
+    const templateType = isVariation ? parts.slice(1, -1).join('-') : parts.slice(1).join('-');
+    
+    let templatePath;
+    if (isVariation) {
+      templatePath = path.join(clientsDir, clientName, 'templates', 'variations', `${templateType}-variations.js`);
+    } else {
+      templatePath = path.join(clientsDir, clientName, 'templates', `${templateType}.js`);
+    }
+    
+    if (!fs.existsSync(templatePath)) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Template not found' 
+      });
+    }
+    
+    const content = fs.readFileSync(templatePath, 'utf8');
+    
+    res.json({
+      success: true,
+      data: {
+        id: templateId,
+        client: clientName,
+        type: isVariation ? `${templateType}-variations` : templateType,
+        content: content,
+        filePath: templatePath,
+        lastModified: fs.statSync(templatePath).mtime.toISOString()
+      }
+    });
+  } catch (error) {
+    logger.error(`❌ Error loading template: ${error.message}`);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message
+    });
+  }
+});
+
+app.put('/api/templates/:templateId', async (req, res) => {
+  try {
+    const { templateId } = req.params;
+    const { content } = req.body;
+    
+    if (!content) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Content is required' 
+      });
+    }
+    
+    const fs = await import('fs');
+    const path = await import('path');
+    const { fileURLToPath } = await import('url');
+    
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    const clientsDir = path.resolve(__dirname, '../../../clients');
+    
+    // Parse template ID
+    const parts = templateId.split('-');
+    const clientName = parts[0];
+    const isVariation = parts[parts.length - 1] === 'variations';
+    const templateType = isVariation ? parts.slice(1, -1).join('-') : parts.slice(1).join('-');
+    
+    let templatePath;
+    if (isVariation) {
+      templatePath = path.join(clientsDir, clientName, 'templates', 'variations', `${templateType}-variations.js`);
+    } else {
+      templatePath = path.join(clientsDir, clientName, 'templates', `${templateType}.js`);
+    }
+    
+    if (!fs.existsSync(templatePath)) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Template not found' 
+      });
+    }
+    
+    // Create backup before editing
+    const backupPath = `${templatePath}.backup.${Date.now()}`;
+    fs.copyFileSync(templatePath, backupPath);
+    
+    // Write new content
+    fs.writeFileSync(templatePath, content, 'utf8');
+    
+    logger.info(`📝 Template updated: ${templatePath}`);
+    logger.info(`💾 Backup created: ${backupPath}`);
+    
+    res.json({
+      success: true,
+      data: {
+        id: templateId,
+        client: clientName,
+        type: isVariation ? `${templateType}-variations` : templateType,
+        content: content,
+        filePath: templatePath,
+        backupPath: backupPath,
+        lastModified: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    logger.error(`❌ Error updating template: ${error.message}`);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
   }
 });
 
@@ -439,8 +1018,16 @@ app.get('/api/templates', (req, res) => {
           id: template.id || template.type,
           name: template.name || template.type,
           type: template.type,
-          content: template.content,
-          variables: template.variables || [],
+          clientId: clientId,
+          content: template.content || template.template,
+          category: template.type === 'order_paid' ? 'recovery' : 
+                   template.type === 'order_expired' ? 'recovery' : 'notification',
+          functionType: template.type === 'order_paid' || template.type === 'order_expired' ? 'webhook' : 'broadcast',
+          trigger: template.type === 'order_paid' ? 'order_paid' : 
+                  template.type === 'order_expired' ? 'order_expired' : null,
+          variables: template.variables || ['customerName', 'productName', 'total'],
+          variations: template.variations || [],
+          usageCount: 0,
           status: 'active',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
@@ -460,8 +1047,15 @@ app.get('/api/templates', (req, res) => {
               name: template.name || template.type,
               type: template.type,
               clientId: client.id,
-              content: template.content,
-              variables: template.variables || [],
+              content: template.content || template.template,
+              category: template.type === 'order_paid' ? 'recovery' : 
+                       template.type === 'order_expired' ? 'recovery' : 'notification',
+              functionType: template.type === 'order_paid' || template.type === 'order_expired' ? 'webhook' : 'broadcast',
+              trigger: template.type === 'order_paid' ? 'order_paid' : 
+                      template.type === 'order_expired' ? 'order_expired' : null,
+              variables: template.variables || ['customerName', 'productName', 'total'],
+              variations: template.variations || [],
+              usageCount: 0,
               status: 'active',
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString()
@@ -751,13 +1345,14 @@ async function initializeScalableSystem() {
 
     logger.info('✅ All core managers initialized successfully');
 
-    // 4. Start server
-    app.listen(PORT, '0.0.0.0', () => {
+    // 4. Start server with WebSocket support
+    server.listen(PORT, '0.0.0.0', () => {
       const systemStats = clientManager.getSystemStats();
       const templateStats = templateManager.getTemplateStats();
       
       logger.info('🎉 OracleWA SaaS v3.0 SCALABLE started successfully!');
       logger.info(`🌐 Server: http://localhost:${PORT}`);
+      logger.info(`🔌 WebSocket: ws://localhost:${PORT}`);
       logger.info(`👥 Clients: ${systemStats.activeClients}/${systemStats.totalClients} active`);
       logger.info(`🎨 Templates: ${templateStats.totalTemplates} loaded`);
       logger.info(`🛡️ Anti-ban: Active with 90s+ delays per client`);

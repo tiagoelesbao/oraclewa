@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { io, Socket } from 'socket.io-client';
 
 interface WebSocketMessage {
   type: string;
@@ -13,7 +14,7 @@ interface UseWebSocketOptions {
   onMessage?: (message: WebSocketMessage) => void;
   onConnect?: () => void;
   onDisconnect?: () => void;
-  onError?: (error: Event) => void;
+  onError?: (error: any) => void;
   reconnect?: boolean;
   reconnectDelay?: number;
   maxReconnectAttempts?: number;
@@ -35,78 +36,92 @@ export const useWebSocket = (options: UseWebSocketOptions) => {
   const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
   
-  const ws = useRef<WebSocket | null>(null);
+  const socket = useRef<Socket | null>(null);
   const reconnectAttempts = useRef(0);
-  const reconnectTimeout = useRef<NodeJS.Timeout | null>(null);
 
   const connect = () => {
     try {
       setConnectionStatus('connecting');
-      ws.current = new WebSocket(url);
+      
+      // Parse URL to get base URL for Socket.IO
+      const baseUrl = url.replace('ws://', 'http://').replace('wss://', 'https://');
+      
+      socket.current = io(baseUrl, {
+        transports: ['websocket', 'polling'],
+        timeout: 20000,
+        reconnection: reconnect,
+        reconnectionDelay: reconnectDelay,
+        reconnectionAttempts: maxReconnectAttempts
+      });
 
-      ws.current.onopen = () => {
+      socket.current.on('connect', () => {
         setIsConnected(true);
         setConnectionStatus('connected');
         reconnectAttempts.current = 0;
         onConnect?.();
-      };
+      });
 
-      ws.current.onmessage = (event) => {
-        try {
-          const message: WebSocketMessage = JSON.parse(event.data);
-          setLastMessage(message);
-          onMessage?.(message);
-        } catch (error) {
-          console.error('Error parsing WebSocket message:', error);
-        }
-      };
-
-      ws.current.onclose = () => {
+      socket.current.on('disconnect', () => {
         setIsConnected(false);
         setConnectionStatus('disconnected');
         onDisconnect?.();
+      });
 
-        // Auto-reconnect logic
-        if (reconnect && reconnectAttempts.current < maxReconnectAttempts) {
-          reconnectAttempts.current++;
-          reconnectTimeout.current = setTimeout(() => {
-            connect();
-          }, reconnectDelay);
-        }
-      };
-
-      ws.current.onerror = (error) => {
+      socket.current.on('connect_error', (error) => {
         setConnectionStatus('error');
         onError?.(error);
-      };
+      });
+
+      // Listen for real-time events
+      socket.current.on('qrcode-generated', (data) => {
+        const message: WebSocketMessage = {
+          type: 'qrcode-generated',
+          data,
+          timestamp: data.timestamp || new Date().toISOString()
+        };
+        setLastMessage(message);
+        onMessage?.(message);
+      });
+
+      socket.current.on('instance-status-updated', (data) => {
+        const message: WebSocketMessage = {
+          type: 'instance-status-updated',
+          data,
+          timestamp: data.timestamp || new Date().toISOString()
+        };
+        setLastMessage(message);
+        onMessage?.(message);
+      });
 
     } catch (error) {
       setConnectionStatus('error');
-      console.error('WebSocket connection error:', error);
+      console.error('Socket.IO connection error:', error);
+      onError?.(error);
     }
   };
 
   const disconnect = () => {
-    if (reconnectTimeout.current) {
-      clearTimeout(reconnectTimeout.current);
-    }
-    
-    if (ws.current) {
-      ws.current.close();
-      ws.current = null;
+    if (socket.current) {
+      socket.current.disconnect();
+      socket.current = null;
     }
     
     setIsConnected(false);
     setConnectionStatus('disconnected');
   };
 
-  const sendMessage = (message: any) => {
-    if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+  const sendMessage = (data: any) => {
+    if (socket.current && socket.current.connected) {
       try {
-        ws.current.send(JSON.stringify(message));
+        // If data has a type field, use it as the event name
+        if (data.type) {
+          socket.current.emit(data.type, data);
+        } else {
+          socket.current.emit('message', data);
+        }
         return true;
       } catch (error) {
-        console.error('Error sending WebSocket message:', error);
+        console.error('Error sending Socket.IO message:', error);
         return false;
       }
     }

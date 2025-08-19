@@ -6,7 +6,7 @@ class ApiClient {
 
   constructor() {
     this.client = axios.create({
-      baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000',
+      baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3333',
       timeout: 30000,
       headers: {
         'Content-Type': 'application/json',
@@ -103,6 +103,33 @@ class ApiClient {
   async getInstanceQRCode(instanceName: string): Promise<{ qrcode: string }> {
     const response = await this.client.get<ApiResponse<{ qrcode: string }>>(`/api/management/hetzner/instances/${instanceName}/qrcode`);
     return response.data.data!;
+  }
+
+  async getInstanceQRCodeDirect(instanceName: string): Promise<any> {
+    const response = await this.client.get(`/api/instances/${instanceName}/qrcode`);
+    return response.data;
+  }
+
+  async getInstanceStatus(instanceName: string): Promise<any> {
+    const response = await this.client.get(`/api/instances/${instanceName}/status`);
+    return response.data;
+  }
+
+  // Método auxiliar para acessar o client axios diretamente
+  get(url: string): Promise<AxiosResponse> {
+    return this.client.get(url);
+  }
+
+  post(url: string, data?: any): Promise<AxiosResponse> {
+    return this.client.post(url, data);
+  }
+
+  put(url: string, data?: any): Promise<AxiosResponse> {
+    return this.client.put(url, data);
+  }
+
+  delete(url: string): Promise<AxiosResponse> {
+    return this.client.delete(url);
   }
 
   // Hetzner Management APIs

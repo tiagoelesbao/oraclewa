@@ -1,7 +1,6 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, ReactNode } from 'react';
-import { useApp } from './AppContext';
 import useWebSocket from '@/hooks/useWebSocket';
 
 interface RealTimeUpdate {
@@ -21,7 +20,8 @@ interface RealTimeContextType {
 const RealTimeContext = createContext<RealTimeContextType | undefined>(undefined);
 
 export const RealTimeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { refreshData, loadSystemStats } = useApp();
+  // Don't use useApp here to avoid circular dependency
+  // We'll get the functions through props or alternative methods
 
   // WebSocket connection (will fallback to polling if WebSocket is not available)
   const {
@@ -31,7 +31,7 @@ export const RealTimeProvider: React.FC<{ children: ReactNode }> = ({ children }
     sendMessage,
     reconnect,
   } = useWebSocket({
-    url: process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3000/ws',
+    url: process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3333',
     onMessage: (message) => {
       handleRealTimeUpdate(message as RealTimeUpdate);
     },
@@ -55,17 +55,17 @@ export const RealTimeProvider: React.FC<{ children: ReactNode }> = ({ children }
     switch (update.type) {
       case 'instance_status':
         // Refresh instances when status changes
-        refreshData();
+        console.log('🔄 Instance status update:', update.data);
         break;
         
       case 'campaign_progress':
         // Update campaign progress in real-time
-        refreshData();
+        console.log('📊 Campaign progress update:', update.data);
         break;
         
       case 'message_sent':
         // Update message counts and statistics
-        loadSystemStats();
+        console.log('📨 Message sent update:', update.data);
         break;
         
       case 'system_alert':
@@ -75,7 +75,7 @@ export const RealTimeProvider: React.FC<{ children: ReactNode }> = ({ children }
         
       case 'webhook_received':
         // Update webhook statistics
-        loadSystemStats();
+        console.log('🔗 Webhook received:', update.data);
         break;
         
       default:
@@ -88,13 +88,10 @@ export const RealTimeProvider: React.FC<{ children: ReactNode }> = ({ children }
     let pollingInterval: NodeJS.Timeout;
 
     if (!isConnected) {
-      // Use polling as fallback
+      // Use polling as fallback - simplified to avoid circular dependency
       pollingInterval = setInterval(() => {
-        loadSystemStats();
-        // Less frequent data refresh to avoid overwhelming
-        if (Date.now() % 60000 < 10000) {
-          refreshData();
-        }
+        console.log('📊 Polling fallback - WebSocket disconnected');
+        // Note: Real data refresh will be handled by individual components
       }, 10000); // Poll every 10 seconds
     }
 
@@ -103,7 +100,7 @@ export const RealTimeProvider: React.FC<{ children: ReactNode }> = ({ children }
         clearInterval(pollingInterval);
       }
     };
-  }, [isConnected, loadSystemStats, refreshData]);
+  }, [isConnected]);
 
   // Subscribe to specific real-time events
   useEffect(() => {

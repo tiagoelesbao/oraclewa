@@ -48,18 +48,19 @@ const Modal: React.FC<ModalProps> = ({
   };
 
   const modalContent = (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
+    <div className="fixed inset-0 z-50 overflow-y-auto animate-in fade-in-0 duration-200">
       <div className="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
         {/* Backdrop */}
         <div
-          className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+          className="fixed inset-0 bg-black bg-opacity-50 transition-all duration-300 ease-out"
           onClick={onClose}
         />
 
         {/* Modal panel */}
         <div
           className={cn(
-            'relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full',
+            'relative transform overflow-hidden rounded-xl bg-white text-left shadow-2xl transition-all duration-300 ease-out sm:my-8 sm:w-full',
+            'animate-in zoom-in-95 slide-in-from-bottom-4',
             sizeClasses[size],
             className
           )}

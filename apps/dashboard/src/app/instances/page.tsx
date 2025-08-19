@@ -13,6 +13,7 @@ import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
   XCircleIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -66,11 +67,11 @@ export default function InstancesPage() {
     }
   };
 
-  const getStatusColor = (status: string): 'success' | 'warning' | 'error' | 'primary' | 'secondary' => {
+  const getStatusColor = (status: string): 'success' | 'warning' | 'error' | 'info' | 'secondary' => {
     switch (status) {
       case 'connected': return 'success';
       case 'warming': return 'warning';
-      case 'connecting': return 'primary';
+      case 'connecting': return 'info';
       case 'disconnected':
       case 'error': return 'error';
       default: return 'secondary';
@@ -99,11 +100,9 @@ export default function InstancesPage() {
 
   const handleConnect = async (instance: any) => {
     try {
-      await connectInstance(instance.id);
-      if (instance.provider === 'evolution') {
-        setSelectedInstance(instance);
-        setShowQRModal(true);
-      }
+      // Para Evolution API, mostrar QR Code diretamente
+      setSelectedInstance(instance);
+      setShowQRModal(true);
     } catch (error) {
       console.error('Error connecting instance:', error);
     }
@@ -125,6 +124,40 @@ export default function InstancesPage() {
   const handleSettings = (instance: any) => {
     setSelectedInstance(instance);
     setShowSettingsModal(true);
+  };
+
+  const handleDelete = async (instance: any) => {
+    // Confirmação antes de deletar
+    const confirmDelete = window.confirm(
+      `Tem certeza que deseja excluir a instância "${instance.instanceName || instance.name}"?\n\nEsta ação não pode ser desfeita!`
+    );
+    
+    if (!confirmDelete) return;
+    
+    try {
+      const response = await fetch(`http://localhost:3333/instance/delete/${instance.instanceName || instance.name}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete instance');
+      }
+      
+      // Recarregar a lista de instâncias
+      await refreshData();
+      
+      // Mostrar mensagem de sucesso (opcional)
+      alert(`Instância "${instance.instanceName || instance.name}" excluída com sucesso!`);
+    } catch (error: any) {
+      console.error('Error deleting instance:', error);
+      const errorMessage = error.message || 'Erro desconhecido';
+      alert(`Erro ao excluir instância: ${errorMessage}\n\nTente novamente.`);
+    }
+  };
+
+  const handleShowQRCode = (instance: any) => {
+    setSelectedInstance(instance);
+    setShowQRModal(true);
   };
 
   const statusCounts = {
@@ -283,6 +316,23 @@ export default function InstancesPage() {
                         <span className="text-gray-600">Limite Diário:</span>
                         <span className="font-medium">{instance.dailyLimit}</span>
                       </div>
+                      {instance.functionType && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600">Função:</span>
+                          <Badge 
+                            variant={
+                              instance.functionType === 'webhook' ? 'info' :
+                              instance.functionType === 'broadcast' ? 'warning' : 'secondary'
+                            } 
+                            size="sm"
+                          >
+                            {instance.functionType === 'webhook' ? 'Webhook' :
+                             instance.functionType === 'broadcast' ? 'Broadcast' :
+                             instance.functionType === 'support' ? 'Suporte' : 
+                             instance.functionType}
+                          </Badge>
+                        </div>
+                      )}
                       {instance.lastActivity && (
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-gray-600">Última Atividade:</span>
@@ -308,18 +358,25 @@ export default function InstancesPage() {
                         >
                           <Cog6ToothIcon className="w-4 h-4" />
                         </Button>
-                        {instance.status === 'connecting' && instance.qrCode && (
+                        {(instance.status === 'disconnected' || instance.status === 'connecting') && (
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => {
-                              setSelectedInstance(instance);
-                              setShowQRModal(true);
-                            }}
+                            onClick={() => handleShowQRCode(instance)}
+                            title="Ver QR Code"
                           >
                             <QrCodeIcon className="w-4 h-4" />
                           </Button>
                         )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDelete(instance)}
+                          className="text-red-600 hover:text-red-700 hover:border-red-300"
+                          title="Excluir instância"
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                        </Button>
                       </div>
                       
                       {instance.status === 'connected' ? (
@@ -389,6 +446,14 @@ export default function InstancesPage() {
           onClose={() => {
             setShowQRModal(false);
             setSelectedInstance(null);
+          }}
+          onConnectionSuccess={() => {
+            // Atualizar dados quando conectar com sucesso
+            refreshData();
+            setTimeout(() => {
+              setShowQRModal(false);
+              setSelectedInstance(null);
+            }, 2000);
           }}
         />
       )}

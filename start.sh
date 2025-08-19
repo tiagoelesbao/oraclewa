@@ -1,3 +1,4 @@
+
 #!/bin/bash
 
 # ==============================================================================
@@ -15,7 +16,7 @@ set -e
 PROJECT_ROOT="/mnt/c/Users/Pichau/Desktop/Sistemas/OracleWA/OracleWA-SaaS"
 API_PID_FILE="/tmp/oraclewa-api.pid"
 DASHBOARD_PID_FILE="/tmp/oraclewa-dashboard.pid"
-API_PORT=3000
+API_PORT=3333
 DASHBOARD_PORT=3001
 
 # Colors for output
@@ -99,13 +100,21 @@ build_frontend() {
 
 start_backend() {
     local mode=$1
+    
+    # Check if port is already in use
+    if lsof -ti:$API_PORT >/dev/null 2>&1; then
+        log_warning "Port $API_PORT is already in use, cleaning up..."
+        lsof -ti:$API_PORT | xargs kill -9 2>/dev/null
+        sleep 2
+    fi
+    
     log_info "Starting backend API server in $mode mode..."
     
     cd apps/api
     if [ "$mode" = "production" ]; then
-        NODE_ENV=production node src/index.js &
+        NODE_ENV=production APP_PORT=$API_PORT node src/index.js &
     else
-        NODE_ENV=development node src/index.js &
+        NODE_ENV=development APP_PORT=$API_PORT node src/index.js &
     fi
     
     local pid=$!
@@ -129,6 +138,14 @@ start_backend() {
 
 start_frontend() {
     local mode=$1
+    
+    # Check if port is already in use
+    if lsof -ti:$DASHBOARD_PORT >/dev/null 2>&1; then
+        log_warning "Port $DASHBOARD_PORT is already in use, cleaning up..."
+        lsof -ti:$DASHBOARD_PORT | xargs kill -9 2>/dev/null
+        sleep 2
+    fi
+    
     log_info "Starting frontend dashboard in $mode mode..."
     
     cd apps/dashboard
@@ -169,10 +186,27 @@ stop_services() {
         rm -f "$DASHBOARD_PID_FILE"
     fi
     
-    # Cleanup any remaining processes
-    pkill -f "node.*apps/api" 2>/dev/null && log_info "Cleaned up backend processes"
-    pkill -f "next.*dev" 2>/dev/null && log_info "Cleaned up frontend dev processes"
-    pkill -f "next.*start" 2>/dev/null && log_info "Cleaned up frontend production processes"
+    # Force kill processes on specific ports if still in use
+    if lsof -ti:$API_PORT >/dev/null 2>&1; then
+        log_warning "Port $API_PORT still in use, force cleaning..."
+        lsof -ti:$API_PORT | xargs kill -9 2>/dev/null
+        log_info "Cleaned up processes on port $API_PORT"
+    fi
+    
+    if lsof -ti:$DASHBOARD_PORT >/dev/null 2>&1; then
+        log_warning "Port $DASHBOARD_PORT still in use, force cleaning..."
+        lsof -ti:$DASHBOARD_PORT | xargs kill -9 2>/dev/null
+        log_info "Cleaned up processes on port $DASHBOARD_PORT"
+    fi
+    
+    # Cleanup any remaining processes with timeout
+    timeout 5 pkill -f "node.*apps/api" 2>/dev/null && log_info "Cleaned up backend processes" || true
+    timeout 5 pkill -f "node.*index.js" 2>/dev/null || true
+    timeout 5 pkill -f "next.*dev" 2>/dev/null && log_info "Cleaned up frontend dev processes" || true
+    timeout 5 pkill -f "next.*start" 2>/dev/null && log_info "Cleaned up frontend production processes" || true
+    
+    # Extra wait to ensure ports are freed
+    sleep 2
     
     log_success "All services stopped"
 }

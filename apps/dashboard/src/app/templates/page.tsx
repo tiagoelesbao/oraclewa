@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   DocumentTextIcon,
   PlusIcon,
@@ -12,35 +12,60 @@ import {
   TagIcon,
   ClockIcon,
   ChartBarIcon,
+  CodeBracketIcon,
 } from '@heroicons/react/24/outline';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { useApp } from '@/contexts/AppContext';
 import { formatDistanceToNowPtBR } from '@/lib/utils';
-import CreateTemplateModal from '@/components/templates/CreateTemplateModal';
-import { Template } from '@/contexts/AppContext';
+import { api } from '@/lib/api';
+import TemplateEditorModal from '@/components/templates/TemplateEditorModal';
+
+interface RealTemplate {
+  id: string;
+  client: string;
+  type: string;
+  name: string;
+  category: string;
+  content: string;
+  filePath: string;
+  lastModified: string;
+}
 
 export default function TemplatesPage() {
-  const {
-    templates,
-    clients,
-    selectedClient,
-    selectClient,
-    deleteTemplate,
-    loading,
-    refreshData,
-  } = useApp();
-
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [editTemplate, setEditTemplate] = useState<Template | null>(null);
+  const { clients, selectedClient, selectClient, loading } = useApp();
+  
+  const [realTemplates, setRealTemplates] = useState<RealTemplate[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(true);
+  const [showEditorModal, setShowEditorModal] = useState(false);
+  const [editTemplate, setEditTemplate] = useState<RealTemplate | null>(null);
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Load real templates from API
+  useEffect(() => {
+    loadRealTemplates();
+  }, []);
+
+  const loadRealTemplates = async () => {
+    try {
+      setLoadingTemplates(true);
+      const response = await api.get('/api/templates');
+      if (response.data.success) {
+        setRealTemplates(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error loading templates:', error);
+    } finally {
+      setLoadingTemplates(false);
+    }
+  };
+
   // Filter templates based on selected client, category, and search
-  const filteredTemplates = templates.filter(template => {
-    const clientMatch = !selectedClient || template.clientId === selectedClient.id;
-    const categoryMatch = categoryFilter === 'all' || template.category === categoryFilter;
+  const filteredTemplates = realTemplates.filter(template => {
+    const clientMatch = !selectedClient || template.client === selectedClient.id;
+    const categoryMatch = categoryFilter === 'all' || template.category.toLowerCase() === categoryFilter;
     const searchMatch = !searchTerm || 
       template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       template.content.toLowerCase().includes(searchTerm.toLowerCase());
@@ -48,63 +73,64 @@ export default function TemplatesPage() {
     return clientMatch && categoryMatch && searchMatch;
   });
 
-  const getCategoryColor = (category: string): 'success' | 'warning' | 'error' | 'primary' | 'secondary' => {
-    switch (category) {
-      case 'marketing': return 'primary';
-      case 'support': return 'success';
-      case 'notification': return 'warning';
-      case 'recovery': return 'error';
+  const getCategoryColor = (category: string): 'success' | 'warning' | 'error' | 'info' | 'secondary' => {
+    switch (category.toLowerCase()) {
+      case 'marketing': return 'info';
+      case 'suporte': return 'success';
+      case 'notificação': return 'warning';
+      case 'recuperação': return 'error';
+      case 'variações': return 'secondary';
       default: return 'secondary';
     }
   };
 
   const getCategoryLabel = (category: string) => {
-    const labels = {
-      marketing: 'Marketing',
-      support: 'Suporte',
-      notification: 'Notificação',
-      recovery: 'Recuperação',
-    };
-    return labels[category as keyof typeof labels] || category;
+    return category;
   };
 
-  const handleEditTemplate = (template: Template) => {
+  const handleEditTemplate = (template: RealTemplate) => {
     setEditTemplate(template);
-    setShowCreateModal(true);
+    setShowEditorModal(true);
   };
 
-  const handleDeleteTemplate = async (template: Template) => {
+  const handleDeleteTemplate = async (template: RealTemplate) => {
     if (confirm(`Tem certeza que deseja excluir o template "${template.name}"?`)) {
-      try {
-        await deleteTemplate(template.id);
-      } catch (error) {
-        console.error('Error deleting template:', error);
-      }
+      console.log('Delete template:', template.id);
+      // TODO: Implement delete functionality
     }
   };
 
-  const handleDuplicateTemplate = async (template: Template) => {
-    setEditTemplate({
-      ...template,
-      id: '', // Will be generated
-      name: `${template.name} (Cópia)`,
-      createdAt: new Date(),
-      usageCount: 0,
-    });
-    setShowCreateModal(true);
+  const handleDuplicateTemplate = async (template: RealTemplate) => {
+    console.log('Duplicate template:', template.id);
+    // TODO: Implement duplicate functionality
   };
 
   const handleCloseModal = () => {
-    setShowCreateModal(false);
+    setShowEditorModal(false);
     setEditTemplate(null);
+  };
+
+  const handleSaveTemplate = async (templateId: string, content: string) => {
+    try {
+      const response = await api.put(`/api/templates/${templateId}`, { content });
+      if (response.data.success) {
+        await loadRealTemplates(); // Refresh templates
+        setShowEditorModal(false);
+        setEditTemplate(null);
+      }
+    } catch (error) {
+      console.error('Error saving template:', error);
+      throw error;
+    }
   };
 
   const categoryCounts = {
     all: filteredTemplates.length,
-    marketing: filteredTemplates.filter(t => t.category === 'marketing').length,
-    support: filteredTemplates.filter(t => t.category === 'support').length,
-    notification: filteredTemplates.filter(t => t.category === 'notification').length,
-    recovery: filteredTemplates.filter(t => t.category === 'recovery').length,
+    marketing: filteredTemplates.filter(t => t.category.toLowerCase() === 'marketing').length,
+    suporte: filteredTemplates.filter(t => t.category.toLowerCase() === 'suporte').length,
+    notificação: filteredTemplates.filter(t => t.category.toLowerCase() === 'notificação').length,
+    recuperação: filteredTemplates.filter(t => t.category.toLowerCase() === 'recuperação').length,
+    variações: filteredTemplates.filter(t => t.category.toLowerCase() === 'variações').length,
   };
 
   return (
@@ -119,19 +145,11 @@ export default function TemplatesPage() {
           <Button 
             variant="outline" 
             size="sm" 
-            onClick={() => refreshData()}
-            disabled={loading}
+            onClick={loadRealTemplates}
+            disabled={loadingTemplates}
           >
-            <DocumentTextIcon className={`w-4 h-4 mr-2 ${loading ? 'animate-pulse' : ''}`} />
+            <DocumentTextIcon className={`w-4 h-4 mr-2 ${loadingTemplates ? 'animate-pulse' : ''}`} />
             Atualizar
-          </Button>
-          <Button 
-            variant="primary" 
-            size="sm"
-            onClick={() => setShowCreateModal(true)}
-          >
-            <PlusIcon className="w-4 h-4 mr-2" />
-            Novo Template
           </Button>
         </div>
       </div>
@@ -185,9 +203,10 @@ export default function TemplatesPage() {
             {[
               { key: 'all', label: 'Todas', count: categoryCounts.all },
               { key: 'marketing', label: 'Marketing', count: categoryCounts.marketing },
-              { key: 'support', label: 'Suporte', count: categoryCounts.support },
-              { key: 'notification', label: 'Notificação', count: categoryCounts.notification },
-              { key: 'recovery', label: 'Recuperação', count: categoryCounts.recovery },
+              { key: 'suporte', label: 'Suporte', count: categoryCounts.suporte },
+              { key: 'notificação', label: 'Notificação', count: categoryCounts.notificação },
+              { key: 'recuperação', label: 'Recuperação', count: categoryCounts.recuperação },
+              { key: 'variações', label: 'Variações', count: categoryCounts.variações },
             ].map(category => (
               <button
                 key={category.key}
@@ -206,31 +225,37 @@ export default function TemplatesPage() {
       </div>
 
       {/* Templates List */}
-      {filteredTemplates.length === 0 ? (
+      {loadingTemplates ? (
+        <Card variant="border">
+          <Card.Content>
+            <div className="text-center py-12">
+              <DocumentTextIcon className="w-12 h-12 text-gray-400 mx-auto mb-4 animate-pulse" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Carregando templates...</h3>
+              <p className="text-gray-600">Buscando templates reais do sistema de arquivos</p>
+            </div>
+          </Card.Content>
+        </Card>
+      ) : filteredTemplates.length === 0 ? (
         <Card variant="border">
           <Card.Content>
             <div className="text-center py-12">
               <DocumentTextIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {searchTerm || categoryFilter !== 'all' ? 'Nenhum template encontrado' : 'Nenhum template criado'}
+                {searchTerm || categoryFilter !== 'all' ? 'Nenhum template encontrado' : 'Nenhum template encontrado'}
               </h3>
               <p className="text-gray-600 mb-4">
                 {searchTerm || categoryFilter !== 'all' 
-                  ? 'Tente ajustar os filtros ou criar um novo template.'
-                  : 'Crie seu primeiro template para começar a enviar mensagens personalizadas.'
+                  ? 'Tente ajustar os filtros.'
+                  : 'Os templates estão sendo carregados diretamente do sistema de arquivos.'
                 }
               </p>
-              <Button variant="primary" onClick={() => setShowCreateModal(true)}>
-                <PlusIcon className="w-4 h-4 mr-2" />
-                Criar Primeiro Template
-              </Button>
             </div>
           </Card.Content>
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredTemplates.map(template => {
-            const client = clients.find(c => c.id === template.clientId);
+            const client = clients.find(c => c.id === template.client);
             
             return (
               <Card key={template.id} variant="elevated" className="hover:shadow-lg transition-shadow">
@@ -242,7 +267,8 @@ export default function TemplatesPage() {
                         <h3 className="text-lg font-semibold text-gray-900 truncate">
                           {template.name}
                         </h3>
-                        <p className="text-sm text-gray-600">{client?.name}</p>
+                        <p className="text-sm text-gray-600">{template.client}</p>
+                        <p className="text-xs text-gray-500">{template.type}</p>
                       </div>
                       <Badge variant={getCategoryColor(template.category)} size="sm">
                         {getCategoryLabel(template.category)}
@@ -251,73 +277,61 @@ export default function TemplatesPage() {
 
                     {/* Template Content Preview */}
                     <div className="bg-gray-50 rounded-lg p-3">
-                      <p className="text-sm text-gray-700 line-clamp-3">
-                        {template.content.substring(0, 120)}
-                        {template.content.length > 120 ? '...' : ''}
+                      <p className="text-sm text-gray-700 line-clamp-4 font-mono whitespace-pre-wrap">
+                        {template.content.substring(0, 200)}
+                        {template.content.length > 200 ? '...' : ''}
                       </p>
                     </div>
 
                     {/* Template Info */}
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div className="flex items-center space-x-2">
+                        <CodeBracketIcon className="w-4 h-4 text-gray-400" />
+                        <div>
+                          <div className="text-gray-500">Tipo</div>
+                          <div className="font-medium">{template.type}</div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-2">
                         <TagIcon className="w-4 h-4 text-gray-400" />
                         <div>
-                          <div className="text-gray-500">Variáveis</div>
-                          <div className="font-medium">{template.variables.length}</div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center space-x-2">
-                        <ChartBarIcon className="w-4 h-4 text-gray-400" />
-                        <div>
-                          <div className="text-gray-500">Variações</div>
-                          <div className="font-medium">{template.variations.length}</div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center space-x-2">
-                        <StarIcon className="w-4 h-4 text-gray-400" />
-                        <div>
-                          <div className="text-gray-500">Usado</div>
-                          <div className="font-medium">{template.usageCount}x</div>
+                          <div className="text-gray-500">Cliente</div>
+                          <div className="font-medium">{template.client}</div>
                         </div>
                       </div>
 
                       <div className="flex items-center space-x-2">
                         <ClockIcon className="w-4 h-4 text-gray-400" />
                         <div>
-                          <div className="text-gray-500">Criado</div>
+                          <div className="text-gray-500">Modificado</div>
                           <div className="font-medium">
-                            {formatDistanceToNowPtBR(template.createdAt)}
+                            {formatDistanceToNowPtBR(new Date(template.lastModified))}
                           </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        <DocumentTextIcon className="w-4 h-4 text-gray-400" />
+                        <div>
+                          <div className="text-gray-500">Linhas</div>
+                          <div className="font-medium">{template.content.split('\n').length}</div>
                         </div>
                       </div>
                     </div>
 
-                    {/* Variables Preview */}
-                    {template.variables.length > 0 && (
-                      <div>
-                        <div className="text-sm text-gray-500 mb-2">Variáveis:</div>
-                        <div className="flex flex-wrap gap-1">
-                          {template.variables.slice(0, 3).map(variable => (
-                            <Badge key={variable} variant="secondary" size="sm">
-                              {variable}
-                            </Badge>
-                          ))}
-                          {template.variables.length > 3 && (
-                            <Badge variant="secondary" size="sm">
-                              +{template.variables.length - 3}
-                            </Badge>
-                          )}
-                        </div>
+                    {/* File Path */}
+                    <div className="bg-blue-50 rounded-lg p-2">
+                      <div className="text-xs text-blue-700 font-mono truncate">
+                        {template.filePath.replace('/mnt/c/Users/Pichau/Desktop/Sistemas/OracleWA/OracleWA-SaaS/', '')}
                       </div>
-                    )}
+                    </div>
 
                     {/* Action Buttons */}
                     <div className="flex items-center justify-between pt-4 border-t border-gray-200">
                       <div className="flex space-x-2">
                         <Button
-                          variant="outline"
+                          variant="primary"
                           size="sm"
                           onClick={() => handleEditTemplate(template)}
                         >
@@ -328,21 +342,12 @@ export default function TemplatesPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleDuplicateTemplate(template)}
+                          onClick={() => window.open(`vscode://file${template.filePath}`, '_blank')}
                         >
-                          <DocumentDuplicateIcon className="w-4 h-4 mr-1" />
-                          Duplicar
+                          <CodeBracketIcon className="w-4 h-4 mr-1" />
+                          VS Code
                         </Button>
                       </div>
-                      
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        onClick={() => handleDeleteTemplate(template)}
-                        disabled={loading}
-                      >
-                        <TrashIcon className="w-4 h-4" />
-                      </Button>
                     </div>
                   </div>
                 </Card.Content>
@@ -352,12 +357,13 @@ export default function TemplatesPage() {
         </div>
       )}
 
-      {/* Create/Edit Template Modal */}
-      {showCreateModal && (
-        <CreateTemplateModal
-          isOpen={showCreateModal}
+      {/* Template Editor Modal */}
+      {showEditorModal && editTemplate && (
+        <TemplateEditorModal
+          isOpen={showEditorModal}
           onClose={handleCloseModal}
-          editTemplate={editTemplate}
+          template={editTemplate}
+          onSave={handleSaveTemplate}
         />
       )}
     </div>

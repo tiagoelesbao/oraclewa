@@ -28,11 +28,11 @@ const InstanceDetailsModal: React.FC<InstanceDetailsModalProps> = ({
   const { clients } = useApp();
   const client = clients.find(c => c.id === instance.clientId);
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string): 'success' | 'warning' | 'error' | 'info' | 'secondary' => {
     switch (status) {
       case 'connected': return 'success';
       case 'warming': return 'warning';
-      case 'connecting': return 'primary';
+      case 'connecting': return 'info';
       case 'disconnected':
       case 'error': return 'error';
       default: return 'secondary';
@@ -95,12 +95,21 @@ const InstanceDetailsModal: React.FC<InstanceDetailsModalProps> = ({
               <label className="block text-sm font-medium text-gray-500 mb-1">
                 Status
               </label>
-              <Badge variant={getStatusColor(instance.status)}>
-                {instance.status === 'connected' ? 'Conectada' :
-                 instance.status === 'connecting' ? 'Conectando' :
-                 instance.status === 'warming' ? 'Aquecendo' :
-                 instance.status === 'disconnected' ? 'Desconectada' : 'Erro'}
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant={getStatusColor(instance.status || instance.connectionState)}>
+                  {instance.status === 'connected' || instance.connectionState === 'open' ? 'Conectada' :
+                   instance.status === 'connecting' || instance.connectionState === 'connecting' ? 'Conectando' :
+                   instance.status === 'warming' ? 'Aquecendo' :
+                   'Desconectada'}
+                </Badge>
+                {instance.functionType && (
+                  <Badge variant={instance.functionType === 'webhook' ? 'info' : 'warning'} size="sm">
+                    {instance.functionType === 'webhook' ? '🔗 Webhook' :
+                     instance.functionType === 'broadcast' ? '📢 Broadcast' : 
+                     '💬 Suporte'}
+                  </Badge>
+                )}
+              </div>
             </div>
 
             <div>
@@ -115,12 +124,21 @@ const InstanceDetailsModal: React.FC<InstanceDetailsModalProps> = ({
           </div>
 
           <div className="space-y-4">
-            {instance.phone && (
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">
+                Número WhatsApp
+              </label>
+              <span className="text-gray-900 font-mono">
+                {instance.phone || instance.instanceName || 'Não conectado'}
+              </span>
+            </div>
+
+            {instance.profileName && (
               <div>
                 <label className="block text-sm font-medium text-gray-500 mb-1">
-                  Número WhatsApp
+                  Nome do Perfil
                 </label>
-                <span className="text-gray-900 font-mono">{instance.phone}</span>
+                <span className="text-gray-900">{instance.profileName}</span>
               </div>
             )}
 
