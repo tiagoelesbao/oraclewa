@@ -1,352 +1,646 @@
-# 🚀 OracleWA SaaS - WhatsApp Automation Platform
+# 🏆 OracleWA SaaS v3.0 - Multi-Tenant WhatsApp Business Platform
 
-[![Version](https://img.shields.io/badge/version-3.0.0-blue.svg)](https://github.com/tiagoelesbao/oraclewa)
-[![License](https://img.shields.io/badge/license-Commercial-green.svg)](./LICENSE)
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/tiagoelesbao/oraclewa/actions)
-[![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://hub.docker.com/r/oraclewa/api)
+<div align="center">
 
-> **Enterprise-grade WhatsApp automation platform with multi-tenant architecture, advanced anti-ban strategies, and unlimited scalability.**
+![OracleWA Logo](docs/assets/logo.png)
 
-## 🎯 Overview
+**Plataforma SaaS multi-tenant escalável para automação WhatsApp Business**
 
-OracleWA SaaS is a professional WhatsApp automation platform designed for businesses that need reliable, scalable, and compliant messaging solutions. Built with a modern multi-tenant architecture, it supports unlimited clients with complete isolation and enterprise-grade security.
+[![Version](https://img.shields.io/badge/version-3.0.0-blue.svg)](https://github.com/imperio-digital/oraclewa-saas)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Node.js](https://img.shields.io/badge/node.js-18+-green.svg)](https://nodejs.org)
+[![TypeScript](https://img.shields.io/badge/typescript-5.0+-blue.svg)](https://www.typescriptlang.org)
+[![Next.js](https://img.shields.io/badge/next.js-14+-black.svg)](https://nextjs.org)
 
-### ✨ Key Features
+[🚀 Demo](https://oraclewa-imperio-production.up.railway.app) • [📖 Docs](docs/) • [🐛 Issues](https://github.com/imperio-digital/oraclewa-saas/issues) • [💬 Discussions](https://github.com/imperio-digital/oraclewa-saas/discussions)
 
-- **🏗️ Multi-Tenant Architecture**: Complete isolation between clients
-- **🔄 Automated Recovery**: Cart abandonment and expired order recovery
-- **📢 Broadcast System**: Mass messaging with advanced anti-ban protection
-- **🛡️ Anti-Ban Strategies**: Professional-grade protection using industry best practices
-- **📊 Real-time Analytics**: Comprehensive metrics and reporting
-- **🐳 Docker Ready**: Containerized deployment with orchestration support
-- **⚡ Auto-scaling**: Handle thousands of messages per hour
-- **🔒 Enterprise Security**: End-to-end encryption and audit trails
-
-## 🏗️ Architecture
-
-```mermaid
-graph TB
-    A[API Gateway] --> B[Recovery Service]
-    A --> C[Broadcast Service]
-    A --> D[Webhook Service]
-    
-    B --> E[(Client DB 1)]
-    C --> F[(Client DB 2)]
-    D --> G[(Shared Config)]
-    
-    H[Evolution API] --> I[WhatsApp Instances]
-    
-    B --> H
-    C --> H
-    D --> H
-    
-    J[Redis Cluster] --> B
-    J --> C
-    J --> D
-    
-    K[Monitoring] --> A
-    L[Analytics] --> A
-```
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-- Node.js 18+
-- Evolution API instance
-- Modern web browser
-
-### Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/tiagoelesbao/oraclewa.git
-cd oraclewa
-
-# Start the system (automatic dependency installation)
-./start.sh
-
-# For production deployment
-./start.sh production
-```
-
-### Unified Script Management
-
-The system now uses a single, powerful script to manage all operations:
-
-```bash
-# Development mode (default) - with hot reload
-./start.sh dev
-
-# Production mode - optimized build
-./start.sh production
-
-# System management
-./start.sh status    # Check service status
-./start.sh health    # Run health checks
-./start.sh stop      # Stop all services
-./start.sh restart   # Restart services
-./start.sh logs      # View real-time logs
-
-# Advanced options
-./start.sh production --build    # Force rebuild
-./start.sh dev --no-deps        # Skip dependency check
-./start.sh help                 # Show all options
-```
-
-### Access Points
-
-Once started, access your system at:
-- **Dashboard**: http://localhost:3001
-- **API**: http://localhost:3000
-- **Health Check**: http://localhost:3000/health
-
-### Configuration
-
-1. **Evolution API**: Configure your Evolution API instances
-2. **Database**: Set up PostgreSQL with proper schemas
-3. **Redis**: Configure Redis for caching and queues
-4. **Webhooks**: Set up webhook endpoints for your clients
-5. **Anti-ban**: Configure strategies based on your use case
-
-## 📚 Documentation
-
-### 🏆 **DOCUMENTOS PRINCIPAIS**
-- 🎯 **[docs/INDICE_DOCUMENTACAO.md](./docs/INDICE_DOCUMENTACAO.md)** - **NAVEGAÇÃO COMPLETA** por perfil
-- 🏆 **[docs/README_SISTEMA_COMPLETO.md](./docs/README_SISTEMA_COMPLETO.md)** - **DOCUMENTO MASTER** - Visão 360°
-
-### 📖 **GUIAS POR CATEGORIA**
-- 🔧 **[docs/GUIA_OPERACIONAL.md](./docs/GUIA_OPERACIONAL.md)** - Como usar sistema completo
-- 📡 **[docs/GUIA_COMPLETO_BROADCAST.md](./docs/GUIA_COMPLETO_BROADCAST.md)** - Sistema broadcast massa
-- 🚨 **[docs/TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md)** - Solução todos problemas  
-- 🏗️ **[docs/architecture/ARQUITETURA_MULTI_TENANT.md](./docs/architecture/ARQUITETURA_MULTI_TENANT.md)** - Arquitetura v3.0
-- 📈 **[docs/PLANEJAMENTO_ESTRATEGICO.md](./docs/PLANEJAMENTO_ESTRATEGICO.md)** - Roadmap futuro
-- 📜 **[docs/HISTORICO.md](./docs/HISTORICO.md)** - Changelog completo
-
-## 🎛️ Client Management
-
-### Adding New Client
-
-```bash
-# Add new client with all services
-./scripts/client-management/add-client.sh newclient "New Client Corp" all
-
-# Add client with only recovery service
-./scripts/client-management/add-client.sh recovery-only "Recovery Only LLC" recovery
-
-# Add client with only broadcast service
-./scripts/client-management/add-client.sh broadcast-only "Broadcast Corp" broadcast
-```
-
-### Client Configuration
-
-Each client has isolated configuration:
-
-```yaml
-# clients/myclient/config.yml
-client:
-  id: myclient
-  name: "My Company Ltd"
-  services: ["recovery", "broadcast"]
-  
-recovery:
-  enabled: true
-  instances: ["client1-recovery"]
-  limits:
-    daily: 500
-    hourly: 50
-
-broadcast:
-  enabled: true
-  isolated: true
-  instances: ["client1-broadcast-1", "client1-broadcast-2"]
-  antiban:
-    strategy: "conti_chips"
-    daily_limit: 1000
-```
-
-## 🛡️ Anti-Ban System
-
-OracleWA implements professional anti-ban strategies:
-
-### Conti Chips Strategy
-- **24h Initial Standby**: Mandatory waiting period after connection
-- **Gradual Growth**: 10→30→50→70 messages per day progression
-- **Humanized Delays**: 30-120 seconds between messages
-- **Strategic Pauses**: Batch processing with intelligent breaks
-- **Instance Rotation**: Load balancing across multiple instances
-
-### Configuration Example
-
-```javascript
-antiban: {
-  strategy: 'conti_chips',
-  delays: {
-    min: 30000,  // 30 seconds
-    max: 120000, // 2 minutes
-    initial24h: 86400000 // 24h mandatory standby
-  },
-  warmup: {
-    day1: { min: 10, max: 20 },
-    day2: { min: 30, max: 40 },
-    day3: { min: 50, max: 60 },
-    mature: { min: 70, max: 100 }
-  }
-}
-```
-
-## 📊 Monitoring & Analytics
-
-### Real-time Metrics
-
-- Message delivery rates
-- Client activity monitoring  
-- Instance health tracking
-- Anti-ban compliance status
-- Revenue and ROI tracking
-
-### Dashboards
-
-- **Operational**: System health and performance
-- **Business**: Client metrics and revenue
-- **Technical**: Instance status and error rates
-- **Compliance**: Anti-ban strategy effectiveness
-
-## 🔧 API Endpoints
-
-### Recovery Service
-```http
-POST /api/v1/webhook/order-expired
-POST /api/v1/webhook/order-paid
-GET  /api/v1/recovery/status
-```
-
-### Broadcast Service
-```http
-POST /api/v1/broadcast/send
-POST /api/v1/broadcast/csv
-GET  /api/v1/broadcast/status
-GET  /api/v1/broadcast/metrics
-```
-
-### Client Management
-```http
-GET  /api/v1/clients
-POST /api/v1/clients
-GET  /api/v1/clients/{clientId}
-PUT  /api/v1/clients/{clientId}
-DELETE /api/v1/clients/{clientId}
-```
-
-## 🚀 Deployment
-
-### Docker Compose (Recommended)
-
-```bash
-# Production deployment
-docker-compose -f infrastructure/docker/docker-compose.yml up -d
-
-# Development
-docker-compose -f infrastructure/docker/docker-compose.dev.yml up -d
-```
-
-### Kubernetes
-
-```bash
-# Apply Kubernetes manifests
-kubectl apply -f infrastructure/kubernetes/
-```
-
-### Cloud Deployment
-
-- **AWS**: ECS/EKS ready
-- **Google Cloud**: GKE compatible
-- **Azure**: AKS supported
-- **DigitalOcean**: App Platform ready
-
-## 🏢 Enterprise Features
-
-### Multi-Tenant Isolation
-
-- **Database**: Separate schemas per client
-- **Redis**: Isolated keyspaces with prefixes
-- **Logs**: Segregated logging per client
-- **Networks**: Docker network isolation
-- **Resources**: CPU/Memory limits per client
-
-### Security & Compliance
-
-- **Encryption**: End-to-end message encryption
-- **LGPD/GDPR**: Privacy compliance built-in
-- **Audit Logs**: Complete activity tracking
-- **Rate Limiting**: Per-client API limits
-- **Access Control**: Role-based permissions
-
-### High Availability
-
-- **Load Balancing**: Multiple instance support
-- **Failover**: Automatic instance switching
-- **Backup**: Automated database backups
-- **Monitoring**: Comprehensive health checks
-- **Alerting**: Real-time incident notifications
-
-## 📈 Performance & Scale
-
-### Capacity
-
-- **Messages**: 10,000+ per hour per instance
-- **Clients**: Unlimited with horizontal scaling
-- **Instances**: Auto-scaling based on demand
-- **Storage**: Configurable retention policies
-
-### Optimizations
-
-- **Connection Pooling**: Efficient database connections
-- **Caching**: Redis-based performance optimization
-- **Queue Processing**: Asynchronous message handling
-- **CDN**: Static asset optimization
-
-## 🤝 Contributing
-
-We welcome contributions! Please see our [Contributing Guide](./CONTRIBUTING.md) for details.
-
-### Development Setup
-
-```bash
-# Clone and install
-git clone https://github.com/oraclewa/saas.git
-cd saas
-npm install
-
-# Start development environment
-npm run dev
-
-# Run tests
-npm test
-
-# Build production
-npm run build
-```
-
-## 📄 License
-
-This project is licensed under a Commercial License - see the [LICENSE](./LICENSE) file for details.
-
-## 🆘 Support
-
-- **Documentation**: [docs.oraclewa.com](https://docs.oraclewa.com)
-- **Community**: [Discord](https://discord.gg/oraclewa)
-- **Enterprise**: support@oraclewa.com
-- **Issues**: [GitHub Issues](https://github.com/oraclewa/saas/issues)
-
-## 🙏 Acknowledgments
-
-- Evolution API team for the excellent WhatsApp integration
-- Conti Chips for professional anti-ban strategies
-- Our beta clients for valuable feedback and testing
+</div>
 
 ---
 
-**Made with ❤️ by the OracleWA Team**
+## 📋 Índice
 
-*Empowering businesses with professional WhatsApp automation since 2024*
+- [✨ Visão Geral](#-visão-geral)
+- [🚀 Funcionalidades](#-funcionalidades)
+- [🏗️ Arquitetura](#️-arquitetura)
+- [⚡ Quick Start](#-quick-start)
+- [🔧 Instalação](#-instalação)
+- [📊 Dashboard](#-dashboard)
+- [🔗 Integrações](#-integrações)
+- [🛡️ Anti-ban](#️-anti-ban)
+- [📡 API Reference](#-api-reference)
+- [🚢 Deploy](#-deploy)
+- [🤝 Contributing](#-contributing)
+
+---
+
+## ✨ Visão Geral
+
+OracleWA SaaS é uma plataforma **multi-tenant completa** para automação WhatsApp Business, projetada para agências e empresas que precisam gerenciar múltiplos clientes com **total separação de dados** e **estratégias anti-ban avançadas**.
+
+### 🎯 Diferenciais
+
+- **🏢 Multi-tenant verdadeiro** - Separação completa de clientes e dados
+- **🤖 Anti-ban avançado** - Estratégias de maturação e humanização
+- **⚡ Real-time** - Dashboard reativo com WebSocket
+- **🔌 Multi-provider** - Evolution API, Z-API, Baileys
+- **📊 Analytics completo** - Métricas detalhadas e logs
+- **🐳 Docker ready** - Containerização completa
+- **🚀 Railway/Hetzner** - Deploy automatizado
+
+### 📈 Casos de Uso
+
+- **Agências de Marketing** - Gestão de múltiplos clientes
+- **E-commerce** - Recuperação de carrinho e atendimento
+- **Infoprodutos** - Nurturing e suporte automatizado
+- **Imobiliárias** - Qualificação de leads
+- **Educação** - Comunicação com alunos
+
+---
+
+## 🚀 Funcionalidades
+
+### 🏢 **Multi-Tenant System**
+- ✅ Separação completa de clientes e dados
+- ✅ Configurações isoladas por cliente
+- ✅ Templates e webhooks independentes
+- ✅ Billing e limites por cliente
+
+### 📱 **Instance Management**
+- ✅ Múltiplos providers (Evolution, Z-API, Baileys)
+- ✅ QR Code management
+- ✅ Status real-time
+- ✅ Reconnection automática
+- ✅ Load balancing
+- ✅ **NOVO**: Exclusão de instâncias com confirmação
+
+### 🎯 **Broadcast System**
+- ✅ Campanhas em massa
+- ✅ Pool de instâncias
+- ✅ Anti-ban strategies
+- ✅ CSV import/export
+- ✅ Agendamento
+
+### 🧠 **AI Anti-ban**
+- ✅ Chip maturation (30 dias)
+- ✅ **NOVO**: Typing simulation humanizada
+- ✅ **NOVO**: Message variations automáticas
+- ✅ **NOVO**: Delay humanization inteligente
+- ✅ **NOVO**: Presence simulation
+
+### 📊 **Analytics & Monitoring**
+- ✅ Dashboard real-time
+- ✅ Performance metrics
+- ✅ Health checks
+- ✅ Error tracking
+- ✅ Usage analytics
+
+### 🔗 **Webhook System**
+- ✅ Multi-client handlers
+- ✅ Payload transformation
+- ✅ Retry logic
+- ✅ Event routing
+- ✅ Template responses
+
+---
+
+## 🏗️ Arquitetura
+
+### 📦 **Stack Tecnológico**
+
+```mermaid
+graph TB
+    subgraph "Frontend"
+        A[Next.js 14] --> B[TypeScript]
+        A --> C[TailwindCSS]
+        A --> D[Socket.IO Client]
+    end
+    
+    subgraph "Backend"
+        E[Node.js 18] --> F[Express]
+        E --> G[Socket.IO]
+        E --> H[Bull Queue]
+    end
+    
+    subgraph "Database"
+        I[PostgreSQL] --> J[Redis]
+    end
+    
+    subgraph "Providers"
+        K[Evolution API] --> L[Z-API]
+        K --> M[Baileys]
+    end
+    
+    A --> E
+    E --> I
+    E --> K
+```
+
+### 🏭 **Arquitetura Multi-Tenant**
+
+```bash
+OracleWA-SaaS/
+├── apps/
+│   ├── api/                 # 🔧 Backend Node.js
+│   │   ├── src/
+│   │   │   ├── modules/     # 📦 Módulos principais
+│   │   │   │   ├── broadcast/     # Sistema de broadcast
+│   │   │   │   ├── webhooks/      # Webhook handlers
+│   │   │   │   └── templates/     # Template engine
+│   │   │   ├── providers/   # 🔌 Provider abstractions
+│   │   │   │   ├── evolution-baileys/
+│   │   │   │   ├── zapi/
+│   │   │   │   └── base/
+│   │   │   ├── services/    # 🛠️ Business logic
+│   │   │   └── utils/       # 🔧 Utilities
+│   │   └── clients/         # 👥 Client configurations
+│   └── dashboard/           # 🎨 Frontend Next.js
+│       ├── src/
+│       │   ├── app/         # App Router (Next.js 14)
+│       │   ├── components/  # React components
+│       │   ├── contexts/    # React contexts
+│       │   └── lib/         # Utilities
+│       └── public/          # Static assets
+├── config/                  # ⚙️ Environment configs
+├── scripts/                 # 🤖 Automation scripts
+└── infrastructure/          # 🐳 Docker, K8s, Terraform
+```
+
+---
+
+## ⚡ Quick Start
+
+### 🚀 **Docker (Recomendado)**
+
+```bash
+# Clone o repositório
+git clone https://github.com/imperio-digital/oraclewa-saas.git
+cd oraclewa-saas
+
+# Copie as variáveis de ambiente
+cp .env.example .env
+
+# Configure as credenciais da Evolution API
+nano .env
+
+# Inicie com Docker
+docker-compose up -d
+
+# Acesse o dashboard
+open http://localhost:3001
+```
+
+### 🛠️ **Desenvolvimento Local**
+
+```bash
+# Instale as dependências
+npm install
+
+# Configure o ambiente
+cp .env.example .env
+nano .env
+
+# Inicie o sistema
+./start.sh dev
+
+# URLs disponíveis
+echo "Frontend: http://localhost:3001"
+echo "Backend:  http://localhost:3333"
+echo "Health:   http://localhost:3333/health"
+```
+
+---
+
+## 🔧 Instalação
+
+### 📋 **Pré-requisitos**
+
+- **Node.js** 18+ ([Download](https://nodejs.org))
+- **PostgreSQL** 14+ ([Download](https://postgresql.org))
+- **Redis** 6+ ([Download](https://redis.io))
+- **Docker** (opcional) ([Download](https://docker.com))
+
+### 🔐 **Variáveis de Ambiente**
+
+```bash
+# Application
+NODE_ENV=production
+APP_PORT=3333
+FRONTEND_URL=http://localhost:3001
+
+# Evolution API
+EVOLUTION_API_URL=http://your-evolution-server:8080
+EVOLUTION_API_KEY=your-api-key
+
+# Database
+DATABASE_URL=postgresql://user:pass@localhost:5432/oraclewa
+REDIS_URL=redis://localhost:6379
+
+# JWT & Security
+JWT_SECRET=your-super-secret-key
+WEBHOOK_SECRET=your-webhook-secret
+
+# Features
+FEATURE_DASHBOARD=true
+FEATURE_ANALYTICS=true
+FEATURE_WEBHOOKS=true
+FEATURE_BROADCAST=true
+```
+
+### 📦 **Instalação Manual**
+
+```bash
+# 1. Clone o repositório
+git clone https://github.com/imperio-digital/oraclewa-saas.git
+cd oraclewa-saas
+
+# 2. Instale dependências
+npm install
+cd apps/api && npm install
+cd ../dashboard && npm install
+cd ../..
+
+# 3. Configure banco de dados
+createdb oraclewa
+npm run db:migrate
+
+# 4. Configure cliente padrão
+npm run setup:client imperio
+
+# 5. Inicie os serviços
+npm run dev
+```
+
+---
+
+## 📊 Dashboard
+
+### 🎨 **Interface Moderna**
+
+O dashboard oferece uma experiência completa para gerenciamento:
+
+#### 📱 **Instâncias WhatsApp**
+- ✅ **NOVO**: Criação com wizard em 4 etapas
+- ✅ **NOVO**: Configurações anti-ban avançadas no frontend
+- ✅ **NOVO**: Indicadores de status dos provedores
+- ✅ **NOVO**: Botão de exclusão com confirmação
+- ✅ QR Code em tempo real
+- ✅ Status monitoring
+
+#### 📈 **Analytics & Métricas**
+- Dashboard em tempo real
+- Gráficos de performance
+- Health checks das instâncias
+- Logs detalhados
+
+#### 🎯 **Sistema de Broadcast**
+- Campanhas em massa
+- Upload CSV
+- Templates dinâmicos
+- Agendamento de envios
+
+#### ⚙️ **Configurações**
+- Client management
+- Template editor
+- Webhook configuration
+- Anti-ban strategies
+
+### 🔐 **Multi-Tenant Interface**
+
+Cada cliente possui:
+- Dashboard isolado
+- Configurações independentes
+- Métricas separadas
+- Templates exclusivos
+
+---
+
+## 🔗 Integrações
+
+### 🚀 **Evolution API + Baileys**
+
+```javascript
+// Configuração automática
+const provider = new EvolutionBaileysProvider({
+  baseUrl: process.env.EVOLUTION_API_URL,
+  apiKey: process.env.EVOLUTION_API_KEY
+});
+
+// Recursos disponíveis
+- ✅ Mensagens de texto
+- ✅ Mídia (imagem, vídeo, áudio)
+- ✅ Documentos
+- ✅ Localização
+- ✅ Contatos
+- ✅ Grupos
+- ❌ Botões (limitação Baileys)
+- ❌ Listas (limitação Baileys)
+```
+
+### 💎 **Z-API Premium**
+
+```javascript
+// Configuração Z-API
+const provider = new ZAPIProvider({
+  instanceId: 'your-instance-id',
+  token: 'your-z-api-token'
+});
+
+// Recursos premium
+- ✅ Todos os recursos Baileys
+- ✅ Botões interativos
+- ✅ Listas de opções
+- ✅ Enquetes
+- ✅ Catálogo de produtos
+- ✅ Suporte oficial 24/7
+```
+
+### 🔧 **Provider Abstraction**
+
+```typescript
+interface WhatsAppProvider {
+  createInstance(name: string): Promise<Instance>;
+  sendMessage(to: string, message: string): Promise<void>;
+  sendMedia(to: string, media: MediaData): Promise<void>;
+  setWebhook(url: string): Promise<void>;
+}
+```
+
+---
+
+## 🛡️ Anti-ban
+
+### 🧠 **Estratégias Implementadas**
+
+#### 1. **Chip Maturation (Maturação)**
+```javascript
+const maturationLevels = {
+  day1:   { min: 10,  max: 20   },  // Novo
+  day2:   { min: 30,  max: 40   },  // Aquecendo
+  day3:   { min: 50,  max: 60   },  // Crescendo
+  day7:   { min: 70,  max: 100  },  // Forte
+  mature: { min: 100, max: 150  }   // Maduro (1+ mês)
+};
+```
+
+#### 2. **🆕 Humanization Features**
+- **⌨️ Typing Simulation**: Simula digitação baseada no tamanho da mensagem
+- **👀 Presence Simulation**: Aparece "online" naturalmente
+- **📖 Reading Simulation**: Marca mensagens como lidas
+- **🎭 Message Variations**: Prefixos e sufixos aleatórios
+
+#### 3. **Smart Delays**
+```javascript
+const antibanConfig = {
+  delays: {
+    min: 15000,        // 15 segundos mínimo
+    max: 45000,        // 45 segundos máximo
+    typing: 3000       // 3 segundos digitando
+  },
+  limits: {
+    messagesPerHour: 100,
+    messagesPerDay: 1000,
+    batchSize: 10,
+    pauseBetweenBatches: 300000  // 5 minutos
+  }
+};
+```
+
+#### 4. **🆕 Frontend Anti-ban Configuration**
+- Interface visual para todas as configurações
+- Preview dos limites baseados na fase
+- Controles avançados expostos no frontend
+- Indicadores de saúde da instância
+
+---
+
+## 📡 API Reference
+
+### 🔍 **Principais Endpoints**
+
+#### Instance Management
+```http
+GET    /instance/fetchInstances
+POST   /instance/create
+DELETE /instance/delete/:name        # 🆕 Exclusão implementada
+GET    /api/instances/:name/qrcode
+GET    /api/instances/:name/status
+```
+
+#### Client Management
+```http
+GET    /api/management/clients
+POST   /api/management/clients
+GET    /api/management/clients/:id
+PUT    /api/management/clients/:id
+```
+
+#### Templates
+```http
+GET    /api/templates
+POST   /api/templates
+PUT    /api/templates/:id
+DELETE /api/templates/:id
+```
+
+#### Broadcast
+```http
+GET    /api/broadcast/campaigns
+POST   /api/broadcast/campaigns
+POST   /api/broadcast/csv
+```
+
+#### Webhooks
+```http
+POST   /webhook/:clientId/:type
+GET    /api/webhooks/events
+```
+
+### 📝 **Exemplo de Uso**
+
+```javascript
+// Criar instância com configurações avançadas
+const response = await fetch('/instance/create', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    instanceName: 'meu-cliente-001',
+    clientId: 'meu-cliente',
+    provider: 'evolution',
+    functionType: 'broadcast',
+    antibanSettings: {
+      strategy: 'conti_chips',
+      enableTypingSimulation: true,
+      enablePresenceSimulation: true,
+      warmupPhase: 'day1'
+    }
+  })
+});
+
+// Deletar instância
+await fetch('/instance/delete/meu-cliente-001', {
+  method: 'DELETE'
+});
+```
+
+---
+
+## 🚢 Deploy
+
+### 🚄 **Railway (Recomendado)**
+
+```bash
+# 1. Instale Railway CLI
+npm install -g @railway/cli
+
+# 2. Login no Railway
+railway login
+
+# 3. Deploy
+railway up
+
+# 4. Configure variáveis
+railway variables set EVOLUTION_API_URL=http://your-server:8080
+railway variables set EVOLUTION_API_KEY=your-key
+
+# 5. Deploy automático via Git
+git push origin main
+```
+
+### 🐳 **Docker Production**
+
+```yaml
+# docker-compose.prod.yml
+version: '3.8'
+services:
+  app:
+    image: oraclewa-saas:latest
+    ports:
+      - "3333:3333"
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+    depends_on:
+      - postgres
+      - redis
+      
+  postgres:
+    image: postgres:14
+    environment:
+      POSTGRES_DB: oraclewa
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+
+volumes:
+  postgres_data:
+  redis_data:
+```
+
+---
+
+## 🆕 Últimas Atualizações (v3.0)
+
+### ✨ **Novas Funcionalidades**
+
+1. **🎨 Interface Modernizada**
+   - Modal de criação com wizard em 4 etapas
+   - Indicadores visuais de status dos provedores
+   - Botão de exclusão com confirmação
+
+2. **🧠 Anti-ban Avançado**
+   - Simulação de digitação humanizada
+   - Simulação de presença online
+   - Variações automáticas de mensagem
+   - Interface frontend para todas as configurações
+
+3. **🔧 Melhorias Técnicas**
+   - Endpoint de exclusão de instâncias
+   - Sincronização em tempo real com Evolution API
+   - Tratamento de erros aprimorado
+   - Logs detalhados
+
+### 🐛 **Correções**
+
+- ✅ Instâncias não sumindo mais do frontend
+- ✅ Erro 500 na criação de instâncias corrigido
+- ✅ Payload de criação otimizado para Evolution API
+- ✅ TypeScript errors resolvidos
+
+---
+
+## 🤝 Contributing
+
+### 🛠️ **Development Setup**
+
+```bash
+# Fork e clone
+git clone https://github.com/your-username/oraclewa-saas.git
+cd oraclewa-saas
+
+# Instale dependências
+npm install
+
+# Configure pre-commit hooks
+npm run setup:hooks
+
+# Inicie desenvolvimento
+npm run dev
+```
+
+### 📋 **Guidelines**
+
+- **Code Style**: Prettier + ESLint
+- **Commits**: Conventional Commits
+- **Tests**: Jest + Testing Library
+- **Docs**: Always update README
+
+### 🐛 **Reportando Bugs**
+
+Abra uma [issue](https://github.com/imperio-digital/oraclewa-saas/issues) com:
+- Descrição detalhada
+- Steps to reproduce
+- Environment info
+- Screenshots/logs
+
+### 🚀 **Feature Requests**
+
+Propostas de novas funcionalidades são sempre bem-vindas! Use as [discussions](https://github.com/imperio-digital/oraclewa-saas/discussions).
+
+---
+
+## 📄 Licença
+
+Este projeto está licenciado sob a **MIT License** - veja o arquivo [LICENSE](LICENSE) para detalhes.
+
+---
+
+## 🙏 Acknowledgments
+
+- **Evolution API** - WhatsApp Web API
+- **Baileys** - WhatsApp Web library
+- **Z-API** - Premium WhatsApp API
+- **Railway** - Deployment platform
+- **Hetzner** - VPS infrastructure
+
+---
+
+<div align="center">
+
+**⭐ Se este projeto te ajudou, considere dar uma estrela!**
+
+[🐛 Reportar Bug](https://github.com/imperio-digital/oraclewa-saas/issues) • [💡 Sugerir Feature](https://github.com/imperio-digital/oraclewa-saas/discussions) • [📖 Documentação](docs/)
+
+---
+
+© 2024 Império Digital. Feito com ❤️ para a comunidade.
+
+</div>

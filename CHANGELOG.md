@@ -5,6 +5,50 @@ All notable changes to OracleWA SaaS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.1] - 2025-08-19
+
+### 🆕 Latest Updates - Enhanced UI & Anti-ban Features
+
+Recent improvements to the v3.0 system with focus on user experience and anti-ban strategies.
+
+### Added
+
+#### 🎨 Modern Dashboard Interface
+- **Instance Creation Wizard**: 4-step guided wizard for WhatsApp instance creation
+- **Enhanced Modals**: Improved modal system with better UX for all operations
+- **Provider Status Indicators**: Real-time visual indicators for Evolution API, Z-API provider health
+- **Instance Deletion**: Safe instance deletion with confirmation dialogs
+- **QR Code Display**: Enhanced QR code modal with real-time updates
+
+#### 🧠 Advanced Anti-ban Features
+- **Humanized Typing Simulation**: Dynamic typing simulation based on message length
+- **Message Variations**: Automatic prefix/suffix variations to avoid pattern detection  
+- **Presence Simulation**: Smart online presence simulation for natural behavior
+- **Enhanced Frontend Controls**: All anti-ban settings now configurable through UI
+- **Provider Abstraction**: Complete abstraction layer supporting Evolution API and Z-API
+
+#### 🔧 Technical Improvements
+- **Real-time Synchronization**: Improved WebSocket sync between frontend and Evolution API
+- **Error Handling**: Enhanced error handling and user feedback
+- **TypeScript Integration**: Full TypeScript support in frontend components
+- **Instance Management**: Complete CRUD operations for WhatsApp instances
+
+### Fixed
+
+#### 🐛 Critical Fixes
+- **Instance Disappearing**: Fixed issue where instances would disappear from frontend
+- **Creation Errors**: Resolved 500 errors during instance creation
+- **Payload Optimization**: Optimized API payloads for Evolution API compatibility
+- **Frontend State**: Fixed state management issues in React contexts
+
+### Changed
+
+#### 🔄 UI/UX Improvements
+- **Modal System**: Redesigned modal components for better consistency
+- **Real-time Updates**: Enhanced WebSocket implementation for live updates
+- **Anti-ban Configuration**: Moved all anti-ban settings to frontend interface
+- **Provider Integration**: Improved provider selection and configuration
+
 ## [3.0.0] - 2025-08-08
 
 ### 🚀 Major Release - Multi-Tenant Architecture
