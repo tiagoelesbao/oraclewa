@@ -13,9 +13,20 @@ if (process.env.SKIP_DB !== 'true') {
 // Novos handlers para o sistema Império
 export const handleOrderExpired = async (req, res) => {
   try {
-    logger.info('=== ORDER EXPIRED WEBHOOK START ===');
-    logger.info('Validated data:', JSON.stringify(req.validatedData, null, 2));
+    logger.info('=== ORDER EXPIRED WEBHOOK DISABLED ===');
+    logger.info('Order expired webhooks temporarily disabled - returning success without processing');
     
+    // Return success without processing the webhook
+    return res.status(200).json({
+      success: true,
+      message: 'Order expired webhook temporarily disabled',
+      timestamp: new Date().toISOString(),
+      webhook_id: `disabled_${Date.now()}`
+    });
+    
+    // Original code commented out for later re-enabling
+    /*
+    logger.info('Validated data:', JSON.stringify(req.validatedData, null, 2));
     const { data } = req.validatedData;
     logger.info('Extracted data:', JSON.stringify(data, null, 2));
     

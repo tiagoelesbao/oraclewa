@@ -184,33 +184,41 @@ class WebhookPoolManager {
       return instances[0];
     }
     
-    // Ordenar instâncias para garantir sequência previsível (1, 2, 3)
-    const sortedInstances = [...instances].sort();
+    // Garantir sequência fixa: imperio-webhook-1 → 2 → 3 → 4 → volta ao 1
+    const fixedOrder = [
+      'imperio-webhook-1',
+      'imperio-webhook-2', 
+      'imperio-webhook-3',
+      'imperio-webhook-4'
+    ];
+    
+    // Filtrar apenas instâncias disponíveis no pool atual
+    const availableInOrder = fixedOrder.filter(name => instances.includes(name));
     
     const lastUsedInstance = this.lastUsedInstance.get(clientId);
     let selectedInstance;
     
     if (!lastUsedInstance) {
-      // Primeira seleção - sempre começar com a primeira instância ordenada
-      selectedInstance = sortedInstances[0];
+      // Primeira seleção - sempre começar com imperio-webhook-1
+      selectedInstance = availableInOrder[0];
     } else {
-      // Encontrar índice da última instância usada
-      const lastIndex = sortedInstances.indexOf(lastUsedInstance);
+      // Encontrar índice da última instância usada na sequência fixa
+      const lastIndex = availableInOrder.indexOf(lastUsedInstance);
       
       if (lastIndex === -1) {
-        // Se não encontrou, começar do início
-        selectedInstance = sortedInstances[0];
+        // Se não encontrou na sequência, começar pelo primeiro
+        selectedInstance = availableInOrder[0];
       } else {
-        // Próxima instância na sequência ordenada
-        const nextIndex = (lastIndex + 1) % sortedInstances.length;
-        selectedInstance = sortedInstances[nextIndex];
+        // Próxima instância na sequência fixa (1→2→3→4→1...)
+        const nextIndex = (lastIndex + 1) % availableInOrder.length;
+        selectedInstance = availableInOrder[nextIndex];
       }
     }
     
     // Atualizar registro da última instância usada
     this.lastUsedInstance.set(clientId, selectedInstance);
     
-    logger.info(`🔄 Sequential ${clientId}: lastUsed=${lastUsedInstance || 'none'}, selected=${selectedInstance} (${sortedInstances.indexOf(selectedInstance) + 1}/${sortedInstances.length}) from [${sortedInstances.join(' → ')}]`);
+    logger.info(`🔄 Sequential ${clientId}: lastUsed=${lastUsedInstance || 'none'}, selected=${selectedInstance} (${availableInOrder.indexOf(selectedInstance) + 1}/${availableInOrder.length}) from [${availableInOrder.join(' → ')}]`);
     
     return selectedInstance;
   }
@@ -391,7 +399,14 @@ class WebhookPoolManager {
       try {
         const payload = JSON.stringify({
           number: messageData.to,
-          text: messageData.text
+          text: messageData.text,
+          options: {
+            detectUrls: true,
+            formatLinks: true,
+            linkPreview: false,
+            delay: 1000,
+            presence: 'available'
+          }
         });
         
         const url = new URL(`/message/sendText/${instanceName}`, evolutionUrl);
@@ -404,6 +419,8 @@ class WebhookPoolManager {
           headers: {
             'apikey': evolutionApiKey,
             'Content-Type': 'application/json; charset=utf-8',
+            'Accept': 'application/json',
+            'User-Agent': 'WhatsApp-Business-Client',
             'Content-Length': Buffer.byteLength(payload, 'utf8')
           },
           timeout: 10000
