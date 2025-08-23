@@ -309,9 +309,10 @@ class WebhookPoolManager {
       const evolutionApiKey = process.env.EVOLUTION_API_KEY || 'Imperio2024@EvolutionSecure';
       
       // Simular digitação
-      await axios.post(`${evolutionUrl}/chat/presence/${instanceName}`, {
+      await axios.post(`${evolutionUrl}/chat/sendPresence/${instanceName}`, {
         number: phoneNumber,
-        presence: 'composing'
+        presence: 'composing',
+        delay: 1000
       }, {
         headers: {
           'apikey': evolutionApiKey,
@@ -325,9 +326,10 @@ class WebhookPoolManager {
       await new Promise(resolve => setTimeout(resolve, typingTime));
       
       // Parar digitação
-      await axios.post(`${evolutionUrl}/chat/presence/${instanceName}`, {
+      await axios.post(`${evolutionUrl}/chat/sendPresence/${instanceName}`, {
         number: phoneNumber,
-        presence: 'paused'
+        presence: 'paused',
+        delay: 1000
       }, {
         headers: {
           'apikey': evolutionApiKey,
