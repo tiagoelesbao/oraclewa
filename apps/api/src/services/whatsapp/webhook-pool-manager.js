@@ -117,18 +117,28 @@ class WebhookPoolManager {
       const instanceName = await this.selectBestInstance(clientId);
       const pool = this.pools.get(clientId);
       
+      // Formatar número brasileiro primeiro
+      let cleanNumber = messageData.to.replace(/\D/g, '');
+      if (!cleanNumber.startsWith('55')) {
+        cleanNumber = '55' + cleanNumber;
+      }
+      if (cleanNumber.length < 12 || cleanNumber.length > 13) {
+        throw new Error(`Número inválido: ${messageData.to} (formatado: ${cleanNumber})`);
+      }
+      
       // Aplicar anti-ban delay
       if (pool.antibanSettings.enabled) {
         await this.applyAntibanDelay(pool.antibanSettings);
       }
 
-      // Simular digitação se habilitado
+      // Simular digitação se habilitado (usando número formatado)
       if (pool.antibanSettings.typingSimulation) {
-        await this.simulateTyping(instanceName, messageData.to);
+        await this.simulateTyping(instanceName, cleanNumber);
       }
 
-      // Enviar mensagem
-      const result = await this.sendMessageToInstance(instanceName, messageData);
+      // Enviar mensagem (criar novo objeto com número formatado)
+      const formattedMessageData = { ...messageData, to: cleanNumber };
+      const result = await this.sendMessageToInstance(instanceName, formattedMessageData);
       
       // Emitir evento em tempo real
       io.emit('webhook-message-sent', {
@@ -176,6 +186,9 @@ class WebhookPoolManager {
     const lastIndex = this.lastUsedIndex.get(clientId) || -1;
     const nextIndex = (lastIndex + 1) % instances.length;
     this.lastUsedIndex.set(clientId, nextIndex);
+    
+    logger.info(`🔄 Round-robin ${clientId}: lastIndex=${lastIndex}, nextIndex=${nextIndex}, selected=${instances[nextIndex]}`);
+    
     return instances[nextIndex];
   }
 
@@ -347,23 +360,10 @@ class WebhookPoolManager {
     const evolutionUrl = process.env.EVOLUTION_API_URL || 'http://128.140.7.154:8080';
     const evolutionApiKey = process.env.EVOLUTION_API_KEY || 'Imperio2024@EvolutionSecure';
     
-    // Limpar e formatar número brasileiro
-    let cleanNumber = messageData.to.replace(/\D/g, '');
-    
-    // Adicionar código do país se necessário
-    if (!cleanNumber.startsWith('55')) {
-      cleanNumber = '55' + cleanNumber;
-    }
-    
-    // Validar tamanho (celular brasileiro: 13 dígitos com código país)
-    if (cleanNumber.length < 12 || cleanNumber.length > 13) {
-      throw new Error(`Número inválido: ${messageData.to} (formatado: ${cleanNumber})`);
-    }
-    
-    logger.info(`📱 Sending to ${cleanNumber} via ${instanceName}`);
+    logger.info(`📱 Sending to ${messageData.to} via ${instanceName}`);
     
     const response = await axios.post(`${evolutionUrl}/message/sendText/${instanceName}`, {
-      number: cleanNumber,
+      number: messageData.to, // Já vem formatado
       text: messageData.text,
       delay: 1000
     }, {
