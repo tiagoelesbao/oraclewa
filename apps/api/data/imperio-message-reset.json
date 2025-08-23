@@ -5,17 +5,17 @@
     "imperio-webhook-2": {
       "baselineCount": 61244,
       "resetAt": "2025-08-23T11:48:33.189Z",
-      "lastKnownCount": 61665
+      "lastKnownCount": 61916
     },
     "imperio-webhook-1": {
       "baselineCount": 61674,
       "resetAt": "2025-08-23T11:48:33.189Z",
-      "lastKnownCount": 61941
+      "lastKnownCount": 62120
     },
     "imperio-webhook-3": {
       "baselineCount": 63062,
       "resetAt": "2025-08-23T11:48:33.189Z",
-      "lastKnownCount": 63456
+      "lastKnownCount": 63690
     },
     "imperio-webhook-4": {
       "baselineCount": 0,
@@ -25,11 +25,11 @@
   },
   "monitoring": {
     "enabled": true,
-    "lastCheck": "2025-08-23T12:00:13.385Z",
+    "lastCheck": "2025-08-23T12:12:13.263Z",
     "incrementalCount": {
-      "imperio-webhook-2": 421,
-      "imperio-webhook-1": 267,
-      "imperio-webhook-3": 394,
+      "imperio-webhook-2": 672,
+      "imperio-webhook-1": 446,
+      "imperio-webhook-3": 628,
       "imperio-webhook-4": 0
     }
   }

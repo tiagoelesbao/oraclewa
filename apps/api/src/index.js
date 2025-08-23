@@ -64,6 +64,9 @@ io.on('connection', (socket) => {
 // Export io for use in other modules
 export { io };
 
+// Make io globally available for queue manager
+global.io = io;
+
 // Middleware
 app.use(helmet({
   crossOriginResourcePolicy: false,
@@ -1508,6 +1511,30 @@ app.get('/api/instances/:instanceName/qrcode', async (req, res) => {
   } catch (error) {
     logger.error('Error getting QR code:', error);
     res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get queue status endpoint
+app.get('/api/queue/status', async (req, res) => {
+  try {
+    const { getPendingWebhookCount, getInMemoryQueue } = await import('./services/queue/manager.js');
+    
+    const pendingCount = await getPendingWebhookCount();
+    const queueStats = getInMemoryQueue ? getInMemoryQueue().getStats() : {};
+    
+    res.json({
+      success: true,
+      pending: pendingCount,
+      stats: queueStats,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    logger.error('Error getting queue status:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      pending: 0 
+    });
   }
 });
 
