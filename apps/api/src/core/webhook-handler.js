@@ -90,9 +90,12 @@ class ScalableWebhookHandler {
       
       // Validar cliente
       const client = clientManager.getClient(clientId);
+      
+      // Verificar se está usando pool ou manager direto
+      const isUsingPool = client.webhookPool?.enabled;
       const whatsappManager = this.whatsappManagers.get(clientId);
       
-      if (!whatsappManager) {
+      if (!isUsingPool && !whatsappManager) {
         throw new Error(`WhatsApp Manager not found for client: ${clientId}`);
       }
 

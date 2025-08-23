@@ -1,0 +1,14 @@
+{
+  "order_expired": {
+    "template": "🚨 *Olá {{customerName}}!*\n\n⏰ Seu pedido do produto *{{productName}}* no valor de *R$ {{totalValue}}* está prestes a expirar!\n\n💳 Finalize agora para garantir sua compra.\n\n_Pedido #{{orderId}}_",
+    "type": "text"
+  },
+  "order_paid": {
+    "template": "✅ *Parabéns {{customerName}}!*\n\n🎉 Seu pagamento foi confirmado com sucesso!\n\n📦 Produto: *{{productName}}*\n💰 Valor: *R$ {{totalValue}}*\n\n📧 Em breve você receberá os detalhes no seu e-mail.\n\n_Pedido #{{orderId}}_",
+    "type": "text"
+  },
+  "welcome": {
+    "template": "👋 *Bem-vindo(a) {{customerName}}!*\n\nÉ um prazer ter você conosco! 🎊\n\nAqui você encontrará os melhores produtos e ofertas exclusivas.\n\n💬 Fique à vontade para entrar em contato sempre que precisar!",
+    "type": "text"
+  }
+}
