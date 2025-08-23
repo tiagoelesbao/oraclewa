@@ -77,41 +77,18 @@ class WebhookPoolManager {
    * Seleciona melhor instância disponível do pool
    */
   async selectBestInstance(clientId) {
-    const pool = this.pools.get(clientId);
-    if (!pool) {
-      throw new Error(`No webhook pool configured for client: ${clientId}`);
-    }
-
-    const healthyInstances = await this.getHealthyInstances(clientId);
+    // HOTFIX: Use only verified connected instances
+    const connectedInstances = ['imperio-webhook-1', 'imperio-webhook-3']; // Skip império-webhook-2 (closed)
     
-    if (healthyInstances.length === 0) {
-      logger.warn(`⚠️ No healthy instances available for ${clientId}, checking fallback`);
-      
-      if (pool.fallbackToAny) {
-        // Tentar qualquer instância como último recurso
-        return this.selectFallbackInstance(pool.instances);
-      }
-      
-      throw new Error(`No healthy instances available for webhook pool: ${clientId}`);
+    // Simple round-robin between connected instances only
+    if (!this.connectedRobinIndex) {
+      this.connectedRobinIndex = 0;
     }
-
-    let selectedInstance;
     
-    switch (pool.strategy) {
-      case 'round-robin':
-        selectedInstance = this.selectRoundRobin(clientId, healthyInstances);
-        break;
-      case 'random':
-        selectedInstance = this.selectRandom(healthyInstances);
-        break;
-      case 'health-based':
-        selectedInstance = this.selectHealthBased(healthyInstances);
-        break;
-      default:
-        selectedInstance = this.selectRoundRobin(clientId, healthyInstances);
-    }
-
-    logger.info(`📱 Selected instance ${selectedInstance} for ${clientId} (strategy: ${pool.strategy})`);
+    const selectedInstance = connectedInstances[this.connectedRobinIndex % connectedInstances.length];
+    this.connectedRobinIndex++;
+    
+    logger.info(`📱 HOTFIX: Selected CONNECTED instance ${selectedInstance} for ${clientId} (${this.connectedRobinIndex}/${connectedInstances.length})`);
     return selectedInstance;
   }
 
