@@ -393,9 +393,82 @@ class WebhookPoolManager {
     
     logger.info(`📱 Sending to ${messageData.to} via ${instanceName}`);
     
+    // Detectar se mensagem contém link de recuperação
+    const hasRecoveryLink = messageData.text.includes('imperiopremioss.com/campanha');
+    
+    if (hasRecoveryLink) {
+      // Tentar enviar com botões primeiro (melhor para iOS)
+      try {
+        return await this.sendWithButtons(evolutionUrl, evolutionApiKey, instanceName, messageData);
+      } catch (buttonError) {
+        logger.warn(`⚠️ Buttons failed, falling back to simple text for ${instanceName}:`, buttonError.message);
+        // Fallback para mensagem simples com URL encurtada
+        return await this.sendWithOptimizedLink(evolutionUrl, evolutionApiKey, instanceName, messageData);
+      }
+    }
+    
+    // Mensagem normal sem link
     const response = await axios.post(`${evolutionUrl}/message/sendText/${instanceName}`, {
-      number: messageData.to, // Já vem formatado
+      number: messageData.to,
       text: messageData.text,
+      delay: 1000
+    }, {
+      headers: {
+        'apikey': evolutionApiKey,
+        'Content-Type': 'application/json'
+      },
+      timeout: 30000
+    });
+
+    return response.data;
+  }
+
+  async sendWithButtons(evolutionUrl, evolutionApiKey, instanceName, messageData) {
+    // Extrair URL da mensagem
+    const urlMatch = messageData.text.match(/(https:\/\/[^\s]+)/);
+    const url = urlMatch ? urlMatch[1] : 'https://imperiopremioss.com/rapidinha?af=A0RJJ5L1QK';
+    
+    // Criar mensagem sem URL para o botão - limpa melhor
+    const textWithoutUrl = messageData.text
+      .replace(/(https:\/\/[^\s]+)/, '')
+      .replace(/🔗.*AGORA.*:\s*/i, '')
+      .replace(/\n\n\s*\n/g, '\n\n')
+      .trim();
+    
+    const response = await axios.post(`${evolutionUrl}/message/sendButtons/${instanceName}`, {
+      number: messageData.to,
+      text: textWithoutUrl,
+      buttons: [
+        {
+          buttonId: 'recovery_link',
+          buttonText: { displayText: '🔗 GARANTA SUAS COTAS' },
+          type: 'url',
+          url: url
+        }
+      ],
+      headerText: '⚠️ ÚLTIMA CHANCE',
+      delay: 1000
+    }, {
+      headers: {
+        'apikey': evolutionApiKey,
+        'Content-Type': 'application/json'
+      },
+      timeout: 30000
+    });
+
+    return response.data;
+  }
+
+  async sendWithOptimizedLink(evolutionUrl, evolutionApiKey, instanceName, messageData) {
+    // URL mais curta e otimizada para iOS
+    const shortUrl = messageData.text.replace(
+      /https:\/\/imperiopremioss\.com\/campanha\/rapidinha-valendo-1200000-mil-em-premiacoes\?\&afiliado=A0RJJ5L1QK/,
+      'https://imperiopremioss.com/rapidinha?af=A0RJJ5L1QK'
+    );
+    
+    const response = await axios.post(`${evolutionUrl}/message/sendText/${instanceName}`, {
+      number: messageData.to,
+      text: shortUrl,
       delay: 1000
     }, {
       headers: {
