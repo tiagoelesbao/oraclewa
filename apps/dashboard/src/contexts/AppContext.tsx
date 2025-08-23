@@ -562,12 +562,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         instanceName: instance.instanceName, // Para o QRCodeModal
         clientId: instance.instanceName.includes('imperio') ? 'imperio' : 
                  instance.instanceName.includes('broadcast') ? 'imperio' : 'demo',
-        status: instance.status || 'disconnected',
+        status: instance.isConnected ? 'connected' : 
+                instance.connectionStatus === 'connecting' ? 'connecting' : 'disconnected',
         provider: instance.provider || 'evolution' as const,
-        phone: instance.phone,
+        phone: instance.ownerJid,
         qrCode: instance.qrcode,
-        messagesCount: instance.messagesCount || 0,
-        lastActivity: new Date(instance.lastActivity || Date.now()),
+        messagesCount: instance.messageCount || 0,
+        lastActivity: new Date(instance.lastConnection || instance.updatedAt || Date.now()),
         maturationLevel: instance.maturationLevel || 'new',
         dailyLimit: instance.dailyLimit || 100,
         antibanSettings: defaultAntibanSettings,

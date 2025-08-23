@@ -68,22 +68,61 @@
       "dailyLimit": 1000
     }
   },
+  "webhookPool": {
+    "enabled": true,
+    "strategy": "round-robin",
+    "healthCheck": true,
+    "maxRetries": 3,
+    "fallbackToAny": true,
+    "instances": [
+      "imperio-webhook-1",
+      "imperio-webhook-2", 
+      "imperio-webhook-3",
+      "imperio-webhook-4"
+    ],
+    "antiban": {
+      "enabled": true,
+      "minDelay": 15000,
+      "maxDelay": 45000,
+      "typingSimulation": true,
+      "presenceSimulation": true
+    }
+  },
   "instances": {
-    "imperio1": {
-      "type": "recovery",
+    "imperio-webhook-1": {
+      "type": "webhook",
       "provider": "evolution-baileys",
-      "status": "active",
-      "phone": "+5511982661537",
-      "id": "50b79573-5f46-4631-bcbd-5490841a7deb",
-      "token": "imperio1_token",
-      "description": "Instância principal para webhooks - ATIVA"
+      "status": "pending",
+      "phone": "pending",
+      "description": "Webhook Pool Instance 1/4 - AGUARDANDO CONEXÃO"
+    },
+    "imperio-webhook-2": {
+      "type": "webhook", 
+      "provider": "evolution-baileys",
+      "status": "pending",
+      "phone": "pending",
+      "description": "Webhook Pool Instance 2/4 - AGUARDANDO CONEXÃO"
+    },
+    "imperio-webhook-3": {
+      "type": "webhook",
+      "provider": "evolution-baileys", 
+      "status": "pending",
+      "phone": "pending",
+      "description": "Webhook Pool Instance 3/4 - AGUARDANDO CONEXÃO"
+    },
+    "imperio-webhook-4": {
+      "type": "webhook",
+      "provider": "evolution-baileys",
+      "status": "pending", 
+      "phone": "pending",
+      "description": "Webhook Pool Instance 4/4 - AGUARDANDO CONEXÃO"
     },
     "imperio-zapi": {
       "type": "recovery",
       "provider": "z-api",
-      "status": "pending",
+      "status": "disabled",
       "phone": "pending",
-      "description": "Nova instância Z-API para alternar webhooks - AGUARDANDO CONEXÃO"
+      "description": "Nova instância Z-API para alternar webhooks - DESABILITADA"
     },
     "broadcast-imperio-1": {
       "type": "broadcast",

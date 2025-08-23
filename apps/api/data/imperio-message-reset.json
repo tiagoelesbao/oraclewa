@@ -1,0 +1,36 @@
+{
+  "clientId": "imperio",
+  "resetTimestamp": "2025-08-23T11:48:33.189Z",
+  "instances": {
+    "imperio-webhook-2": {
+      "baselineCount": 61244,
+      "resetAt": "2025-08-23T11:48:33.189Z",
+      "lastKnownCount": 61665
+    },
+    "imperio-webhook-1": {
+      "baselineCount": 61674,
+      "resetAt": "2025-08-23T11:48:33.189Z",
+      "lastKnownCount": 61941
+    },
+    "imperio-webhook-3": {
+      "baselineCount": 63062,
+      "resetAt": "2025-08-23T11:48:33.189Z",
+      "lastKnownCount": 63456
+    },
+    "imperio-webhook-4": {
+      "baselineCount": 0,
+      "resetAt": "2025-08-23T11:48:33.189Z",
+      "lastKnownCount": 0
+    }
+  },
+  "monitoring": {
+    "enabled": true,
+    "lastCheck": "2025-08-23T12:00:13.385Z",
+    "incrementalCount": {
+      "imperio-webhook-2": 421,
+      "imperio-webhook-1": 267,
+      "imperio-webhook-3": 394,
+      "imperio-webhook-4": 0
+    }
+  }
+}

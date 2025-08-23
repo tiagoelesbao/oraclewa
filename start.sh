@@ -1,5 +1,5 @@
 
-#!/bin/bash
+#!/usr/bin/env bash
 
 # ==============================================================================
 # 🚀 OracleWA SaaS v3.1 - Unified Startup & Management Script
@@ -57,6 +57,7 @@ show_help() {
     echo "  status              Show status of all services"
     echo "  health              Check system health"
     echo "  logs                Show real-time logs"
+    echo "  instances           Create webhook pool instances"
     echo "  help                Show this help message"
     echo ""
     echo "OPTIONS:"
@@ -98,6 +99,29 @@ build_frontend() {
     log_success "Frontend build completed"
 }
 
+setup_webhook_pool() {
+    log_info "Setting up webhook pool automatically..."
+    
+    # Check if script exists
+    if [ -f "scripts/prepare-webhook-pool.js" ]; then
+        # Run pool setup in background to not block startup
+        log_info "Creating webhook pool instances..."
+        node scripts/prepare-webhook-pool.js > /tmp/webhook-pool-setup.log 2>&1 &
+        POOL_SETUP_PID=$!
+        
+        # Wait for a moment to see if it starts successfully
+        sleep 3
+        if kill -0 $POOL_SETUP_PID 2>/dev/null; then
+            log_success "Webhook pool setup started in background"
+            log_info "Check logs: tail -f /tmp/webhook-pool-setup.log"
+        else
+            log_warning "Webhook pool setup completed or failed quickly"
+        fi
+    else
+        log_warning "Webhook pool setup script not found, skipping auto-setup"
+    fi
+}
+
 start_backend() {
     local mode=$1
     
@@ -112,9 +136,9 @@ start_backend() {
     
     cd apps/api
     if [ "$mode" = "production" ]; then
-        NODE_ENV=production APP_PORT=$API_PORT node src/index.js &
+        SKIP_DB=true NODE_ENV=production APP_PORT=$API_PORT node src/index.js &
     else
-        NODE_ENV=development APP_PORT=$API_PORT node src/index.js &
+        SKIP_DB=true NODE_ENV=development APP_PORT=$API_PORT node src/index.js &
     fi
     
     local pid=$!
@@ -319,12 +343,22 @@ start_system() {
     # Start frontend
     start_frontend "$mode"
     
+    # Setup webhook pool automatically after system is running
+    sleep 2
+    setup_webhook_pool
+    
     echo ""
     log_success "System started successfully!"
     echo "=============================="
     echo "   🎨 Frontend Dashboard: http://localhost:$DASHBOARD_PORT"
     echo "   🔧 Backend API:        http://localhost:$API_PORT"
     echo "   📊 Health Check:       http://localhost:$API_PORT/health"
+    echo "   📱 Webhook Pool:       http://localhost:$DASHBOARD_PORT/instances"
+    echo ""
+    echo "🏊 Webhook Pool Status:"
+    echo "   • Pool de 4 instâncias configurado automaticamente"
+    echo "   • Acesse /instances para conectar os números"
+    echo "   • QR codes gerados automaticamente"
     echo ""
     echo "📋 Available Commands:"
     echo "   ./start.sh status    - Check service status"
@@ -406,6 +440,10 @@ while [[ $# -gt 0 ]]; do
             COMMAND="logs"
             shift
             ;;
+        instances)
+            COMMAND="instances"
+            shift
+            ;;
         help|--help|-h)
             show_help
             exit 0
@@ -472,6 +510,19 @@ case $COMMAND in
         ;;
     logs)
         show_logs
+        ;;
+    instances)
+        log_info "Creating webhook pool instances..."
+        if [ -f "scripts/prepare-webhook-pool.js" ]; then
+            node scripts/prepare-webhook-pool.js
+            log_success "Webhook pool setup completed!"
+            log_info "Next steps:"
+            log_info "1. Access: http://localhost:3001/webhooks"
+            log_info "2. Connect the 4 instances using QR codes"
+        else
+            log_error "Instance setup script not found!"
+            log_error "Make sure scripts/prepare-webhook-pool.js exists"
+        fi
         ;;
     *)
         log_error "Invalid command: $COMMAND"

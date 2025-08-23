@@ -26,7 +26,7 @@ export const ORDER_PAID_VARIATIONS = [
 🍀 *Boa sorte!*
 
 🔗 *Entre na Comunidade VIP:*
-https://chat.whatsapp.com/EsOryU1oONNII64AAOz6TF
+https://chat.whatsapp.com/EsOryU1oONNII64AAOz6TF?mode=ems_copy_c
 
 *Império Prêmios* 🏆`
   },
@@ -54,7 +54,7 @@ https://chat.whatsapp.com/EsOryU1oONNII64AAOz6TF
 🤞 Boa sorte!
 
 🔗 *Entre na Comunidade VIP:*
-https://chat.whatsapp.com/EsOryU1oONNII64AAOz6TF
+https://chat.whatsapp.com/EsOryU1oONNII64AAOz6TF?mode=ems_copy_c
 
 *Império Prêmios* ✨`
   },
@@ -82,7 +82,7 @@ https://chat.whatsapp.com/EsOryU1oONNII64AAOz6TF
 🌟 Boa sorte!
 
 🔗 *Entre na Comunidade VIP:*
-https://chat.whatsapp.com/EsOryU1oONNII64AAOz6TF
+https://chat.whatsapp.com/EsOryU1oONNII64AAOz6TF?mode=ems_copy_c
 
 *Equipe Império* 🎰`
   }

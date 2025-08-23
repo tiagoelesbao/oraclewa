@@ -13,6 +13,8 @@ import clientManager from './core/client-manager.js';
 import templateManager from './core/template-manager.js';
 import scalableWebhookHandler from './core/webhook-handler.js';
 import hetznerManager from './core/hetzner-manager.js';
+import webhookPoolManager from './services/whatsapp/webhook-pool-manager.js';
+import { getPendingWebhookCount } from './services/queue/manager.js';
 
 // Chip Maturation Module
 import chipMaturationModule from './modules/chip-maturation/index.js';
@@ -27,6 +29,9 @@ logger.info('🏗️ Multi-tenant system with true client separation');
 logger.info('🛡️ Anti-ban protection: 90s+ delays + typing simulation');
 logger.info(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
 logger.info(`🔧 Port: ${process.env.APP_PORT || 3333}`);
+
+// Global flag to control message count display
+let showWebhookQueue = true;
 
 const app = express();
 const server = createServer(app);
@@ -118,6 +123,136 @@ app.get('/health', (req, res) => {
       error: error.message,
       timestamp: new Date().toISOString()
     });
+  }
+});
+
+// List all instances with real status from Evolution API
+app.get('/api/instances', async (req, res) => {
+  try {
+    const evolutionUrl = process.env.EVOLUTION_API_URL || 'http://128.140.7.154:8080';
+    const evolutionApiKey = process.env.EVOLUTION_API_KEY || 'Imperio2024@EvolutionSecure';
+    
+    const response = await axios.get(`${evolutionUrl}/instance/fetchInstances`, {
+      headers: {
+        'apikey': evolutionApiKey,
+        'Content-Type': 'application/json'
+      },
+      timeout: 15000
+    });
+    
+    const instances = response.data || [];
+    
+    // Load reset data to calculate relative message counts
+    const fs = await import('fs');
+    const path = await import('path');
+    const resetFiles = {};
+    
+    // Try to load reset files for all clients
+    const dataDir = path.join(process.cwd(), 'data');
+    if (fs.existsSync(dataDir)) {
+      const files = fs.readdirSync(dataDir);
+      files.forEach(file => {
+        if (file.endsWith('-message-reset.json')) {
+          const filePath = path.join(dataDir, file);
+          try {
+            const resetData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+            resetFiles[resetData.clientId] = resetData;
+          } catch (error) {
+            logger.warn(`Failed to load reset file ${file}:`, error.message);
+          }
+        }
+      });
+    }
+
+    // Get pending webhook count for the entire queue (shared across instances)
+    const pendingWebhookCount = await getPendingWebhookCount();
+
+    // Transform data to match frontend expectations and show webhook queue status
+    const transformedInstances = instances.map((instance, index) => {
+      // For display purposes, show the total webhook count only on the first active instance
+      // This avoids showing the same queue count multiple times
+      let messageCount = 0;
+      
+      // Use the global flag to control what to show
+      if (showWebhookQueue) {
+        // Show webhook queue count only on the first connected instance to avoid duplication
+        const isFirstConnectedInstance = instances.findIndex(inst => inst.connectionStatus === 'open') === index;
+        if (isFirstConnectedInstance && instance.connectionStatus === 'open') {
+          messageCount = pendingWebhookCount;
+        }
+      } else {
+        // Show the traditional WhatsApp message count with reset logic
+        for (const [clientId, resetData] of Object.entries(resetFiles)) {
+          if (resetData.instances && resetData.instances[instance.name]) {
+            const instanceReset = resetData.instances[instance.name];
+            const currentCount = instance._count?.Message || 0;
+            
+            if (resetData.monitoring && resetData.monitoring.enabled) {
+              messageCount = Math.max(0, currentCount - (instanceReset.baselineCount || 0));
+            }
+            break;
+          }
+        }
+      }
+      
+      // Still update the reset data for monitoring purposes (but don't use for display)
+      for (const [clientId, resetData] of Object.entries(resetFiles)) {
+        if (resetData.instances && resetData.instances[instance.name]) {
+          const instanceReset = resetData.instances[instance.name];
+          const currentCount = instance._count?.Message || 0;
+          
+          // Update tracking data but don't use for messageCount display
+          instanceReset.lastKnownCount = currentCount;
+          if (resetData.monitoring && resetData.monitoring.enabled) {
+            const currentIncrement = Math.max(0, currentCount - (instanceReset.baselineCount || 0));
+            resetData.monitoring.incrementalCount[instance.name] = currentIncrement;
+          }
+          break;
+        }
+      }
+      
+      return {
+        id: instance.id,
+        name: instance.name,
+        instanceName: instance.name,
+        connectionStatus: instance.connectionStatus,
+        ownerJid: instance.ownerJid,
+        profileName: instance.profileName,
+        profilePicUrl: instance.profilePicUrl,
+        provider: 'evolution-baileys',
+        isConnected: instance.connectionStatus === 'open',
+        lastConnection: instance.updatedAt,
+        messageCount,
+        contactCount: instance._count?.Contact || 0,
+        chatCount: instance._count?.Chat || 0,
+        createdAt: instance.createdAt,
+        updatedAt: instance.updatedAt
+      };
+    });
+
+    // Save updated reset files back to disk (for incremental counters)
+    for (const [clientId, resetData] of Object.entries(resetFiles)) {
+      if (resetData.monitoring && resetData.monitoring.enabled) {
+        try {
+          const resetFilePath = path.join(dataDir, `${clientId}-message-reset.json`);
+          resetData.monitoring.lastCheck = new Date().toISOString();
+          fs.writeFileSync(resetFilePath, JSON.stringify(resetData, null, 2));
+        } catch (error) {
+          logger.warn(`Failed to save reset file for ${clientId}:`, error.message);
+        }
+      }
+    }
+    
+    res.json({ 
+      success: true, 
+      instances: transformedInstances,
+      total: transformedInstances.length,
+      connected: transformedInstances.filter(i => i.isConnected).length,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    logger.error('Error fetching instances:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -1186,6 +1321,31 @@ app.post('/api/broadcast/csv', (req, res) => {
   }
 });
 
+// Endpoint to toggle between WhatsApp messages and webhook queue
+app.post('/api/instances/toggle-count-mode', (req, res) => {
+  showWebhookQueue = !showWebhookQueue;
+  res.json({ 
+    success: true, 
+    mode: showWebhookQueue ? 'webhook_queue' : 'whatsapp_messages',
+    message: `Now showing ${showWebhookQueue ? 'webhook queue count' : 'WhatsApp message count'}`
+  });
+});
+
+// Debug endpoint to test pending webhook count
+app.get('/api/debug/webhook-count', async (req, res) => {
+  try {
+    const pendingCount = await getPendingWebhookCount();
+    res.json({ 
+      success: true, 
+      pendingWebhooks: pendingCount,
+      skipDB: process.env.SKIP_DB === 'true',
+      showWebhookQueue
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Webhook Events API
 app.get('/api/webhooks/events', (req, res) => {
   try {
@@ -1263,6 +1423,214 @@ app.get('/api/analytics', (req, res) => {
   }
 });
 
+// Webhook Pool APIs
+app.get('/api/webhooks/pools', (req, res) => {
+  try {
+    const poolStats = webhookPoolManager.getAllPoolStats();
+    res.json({ success: true, pools: poolStats });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get('/api/webhooks/pools/:clientId', (req, res) => {
+  try {
+    const { clientId } = req.params;
+    const poolStats = webhookPoolManager.getPoolStats(clientId);
+    res.json({ success: true, pool: poolStats });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/webhooks/pools/:clientId/instances', async (req, res) => {
+  try {
+    const { clientId } = req.params;
+    const { instanceName } = req.body;
+    
+    await webhookPoolManager.addInstanceToPool(clientId, instanceName);
+    res.json({ success: true, message: `Instance ${instanceName} added to pool ${clientId}` });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.delete('/api/webhooks/pools/:clientId/instances/:instanceName', async (req, res) => {
+  try {
+    const { clientId, instanceName } = req.params;
+    
+    await webhookPoolManager.removeInstanceFromPool(clientId, instanceName);
+    res.json({ success: true, message: `Instance ${instanceName} removed from pool ${clientId}` });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get('/api/webhooks/stats', (req, res) => {
+  try {
+    // Mock webhook stats - implementar com dados reais
+    const stats = {
+      totalMessages: 19821,
+      successRate: 95.2,
+      averageDelay: 32,
+      lastMessage: new Date().toISOString(),
+      poolsActive: Object.keys(webhookPoolManager.getAllPoolStats()).length,
+      healthyInstances: Object.values(webhookPoolManager.getAllPoolStats())
+        .reduce((total, pool) => total + pool.healthyCount, 0)
+    };
+    
+    res.json({ success: true, stats });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Instance QR Code endpoint
+app.get('/api/instances/:instanceName/qrcode', async (req, res) => {
+  try {
+    const { instanceName } = req.params;
+    const evolutionUrl = process.env.EVOLUTION_API_URL || 'http://128.140.7.154:8080';
+    const evolutionApiKey = process.env.EVOLUTION_API_KEY || 'Imperio2024@EvolutionSecure';
+    
+    const response = await axios.get(`${evolutionUrl}/instance/connect/${instanceName}`, {
+      headers: {
+        'apikey': evolutionApiKey,
+        'Content-Type': 'application/json'
+      },
+      timeout: 30000
+    });
+
+    if (response.data?.base64) {
+      res.json({ success: true, qrcode: response.data.base64 });
+    } else {
+      res.status(404).json({ success: false, error: 'QR Code not available' });
+    }
+  } catch (error) {
+    logger.error('Error getting QR code:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Clear message queue endpoint
+app.post('/api/queue/clear/:clientId', async (req, res) => {
+  try {
+    const { clientId } = req.params;
+    logger.info(`🧹 Clearing message queue for client: ${clientId}`);
+
+    let result = {};
+    
+    try {
+      // Try to clear Redis queues if available
+      const { clearQueues } = await import('./services/queue/manager.js');
+      result = await clearQueues();
+    } catch (redisError) {
+      logger.warn('Redis not available, using fallback method:', redisError.message);
+      
+      // Fallback: Since Redis is not available, messages are processed directly
+      // This means there's no actual queue to clear, which is good for our use case
+      result = {
+        status: 'no-queue',
+        reason: 'Messages processed directly without Redis queue',
+        action: 'No pending messages to clear'
+      };
+    }
+    
+    logger.info(`✅ Queue clear operation completed for ${clientId}:`, result);
+    
+    res.json({
+      success: true,
+      message: `Message queue clearing completed for ${clientId}`,
+      data: {
+        clientId,
+        clearedAt: new Date().toISOString(),
+        ...result
+      }
+    });
+  } catch (error) {
+    logger.error('Error clearing message queue:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Reset message count endpoint
+app.post('/api/instances/reset-messages/:clientId', async (req, res) => {
+  try {
+    const { clientId } = req.params;
+    logger.info(`🔄 Resetting message count for client: ${clientId}`);
+
+    // Get current instances data from Evolution API
+    const evolutionUrl = process.env.EVOLUTION_API_URL || 'http://128.140.7.154:8080';
+    const evolutionApiKey = process.env.EVOLUTION_API_KEY || 'Imperio2024@EvolutionSecure';
+    
+    const response = await axios.get(`${evolutionUrl}/instance/fetchInstances`, {
+      headers: {
+        'apikey': evolutionApiKey,
+        'Content-Type': 'application/json'
+      },
+      timeout: 15000
+    });
+
+    const instances = response.data || [];
+    
+    // Filter webhook instances for the client
+    const webhookInstances = instances.filter(instance => 
+      instance.name && 
+      instance.name.includes(`${clientId}-webhook`)
+    );
+
+    // Create reset data with current message counts as baseline
+    const resetData = {
+      clientId,
+      resetTimestamp: new Date().toISOString(),
+      instances: {},
+      monitoring: {
+        enabled: true,
+        lastCheck: new Date().toISOString(),
+        incrementalCount: {}
+      }
+    };
+
+    webhookInstances.forEach(instance => {
+      resetData.instances[instance.name] = {
+        baselineCount: instance._count?.Message || 0,
+        resetAt: new Date().toISOString(),
+        lastKnownCount: instance._count?.Message || 0
+      };
+      // Initialize incremental counter to 0
+      resetData.monitoring.incrementalCount[instance.name] = 0;
+    });
+
+    // Save reset data to file
+    const fs = await import('fs');
+    const path = await import('path');
+    const resetFilePath = path.join(process.cwd(), 'data', `${clientId}-message-reset.json`);
+    
+    // Ensure data directory exists
+    const dataDir = path.dirname(resetFilePath);
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+
+    fs.writeFileSync(resetFilePath, JSON.stringify(resetData, null, 2));
+
+    logger.info(`✅ Message count reset completed for ${clientId}:`, resetData);
+    
+    res.json({
+      success: true,
+      message: `Message count reset for ${webhookInstances.length} instances`,
+      data: {
+        clientId,
+        instancesReset: webhookInstances.length,
+        resetTimestamp: resetData.resetTimestamp,
+        instances: Object.keys(resetData.instances)
+      }
+    });
+  } catch (error) {
+    logger.error('Error resetting message count:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Logs API
 app.get('/api/logs', (req, res) => {
   try {
@@ -1311,6 +1679,36 @@ app.use('*', (req, res) => {
       'POST /api/webhook/temp-order-expired'
     ]
   });
+});
+
+// Webhook Pools API
+app.get('/api/webhook-pools', async (req, res) => {
+  try {
+    const pools = {
+      imperio: {
+        clientId: 'imperio',
+        strategy: 'round-robin',
+        instances: [
+          'imperio-webhook-1',
+          'imperio-webhook-2', 
+          'imperio-webhook-3',
+          'imperio-webhook-4'
+        ],
+        status: 'active',
+        healthStatus: {
+          total: 4,
+          healthy: 0,
+          unhealthy: 4
+        },
+        messageQueue: 0
+      }
+    };
+    
+    res.json({ success: true, data: pools });
+  } catch (error) {
+    logger.error('Error fetching webhook pools:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 // Inicialização escalável

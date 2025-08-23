@@ -15,7 +15,7 @@ Seu pedido de *${productName}* no valor de *R$ ${total}* foi confirmado com suce
 📱 Acompanhe os sorteios ao vivo
 🎯 Boa sorte na sua sorte!
 
-👉 https://chat.whatsapp.com/EsOryU1oONNII64AAOz6TF
+👉 https://chat.whatsapp.com/EsOryU1oONNII64AAOz6TF?mode=ems_copy_c
 
 *Império Prêmios* 🍀
 _Sua sorte começa agora!_`;

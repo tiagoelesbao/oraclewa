@@ -6,6 +6,7 @@ import logger from '../utils/logger.js';
 import clientManager from './client-manager.js';
 import templateManager from './template-manager.js';
 import SimpleWhatsAppManager from '../services/whatsapp/simple-manager.js';
+import webhookPoolManager from '../services/whatsapp/webhook-pool-manager.js';
 
 class ScalableWebhookHandler {
   constructor() {
@@ -37,22 +38,38 @@ class ScalableWebhookHandler {
     for (const client of clients) {
       try {
         const clientConfig = clientManager.getClient(client.id);
-        const activeInstance = clientManager.getActiveInstance(client.id, 'recovery');
         
-        // Configurar WhatsApp Manager específico do cliente
-        const whatsappConfig = {
-          apiUrl: clientConfig.infrastructure?.servers?.hetzner ? 
-            `http://${clientConfig.infrastructure.servers.hetzner.ip}:${clientConfig.infrastructure.servers.hetzner.port}` :
-            process.env.EVOLUTION_API_URL,
-          apiKey: process.env.EVOLUTION_API_KEY,
-          instanceName: activeInstance.name,
-          timeout: 10000
-        };
-        
-        const manager = new SimpleWhatsAppManager(whatsappConfig);
-        this.whatsappManagers.set(client.id, manager);
-        
-        logger.info(`📱 WhatsApp Manager initialized for client: ${client.id} (instance: ${activeInstance.name})`);
+        // Verificar se cliente tem pool de webhooks configurado
+        if (clientConfig.webhookPool?.enabled) {
+          logger.info(`🏊 Configuring webhook pool for client: ${client.id}`);
+          
+          await webhookPoolManager.configureWebhookPool(client.id, {
+            instances: clientConfig.webhookPool.instances,
+            strategy: clientConfig.webhookPool.strategy || 'round-robin',
+            maxRetries: clientConfig.webhookPool.maxRetries || 3,
+            healthCheck: clientConfig.webhookPool.healthCheck !== false,
+            fallbackToAny: clientConfig.webhookPool.fallbackToAny !== false,
+            antiban: clientConfig.webhookPool.antiban || {}
+          });
+          
+        } else {
+          // Fallback para instância única (método antigo)
+          const activeInstance = clientManager.getActiveInstance(client.id, 'recovery');
+          
+          const whatsappConfig = {
+            apiUrl: clientConfig.infrastructure?.servers?.hetzner ? 
+              `http://${clientConfig.infrastructure.servers.hetzner.ip}:${clientConfig.infrastructure.servers.hetzner.port}` :
+              process.env.EVOLUTION_API_URL,
+            apiKey: process.env.EVOLUTION_API_KEY,
+            instanceName: activeInstance.name,
+            timeout: 10000
+          };
+          
+          const manager = new SimpleWhatsAppManager(whatsappConfig);
+          this.whatsappManagers.set(client.id, manager);
+          
+          logger.info(`📱 Single WhatsApp Manager initialized for client: ${client.id} (instance: ${activeInstance.name})`);
+        }
         
       } catch (error) {
         logger.warn(`⚠️ Failed to initialize WhatsApp Manager for client ${client.id}:`, error.message);
@@ -91,8 +108,19 @@ class ScalableWebhookHandler {
       const templateType = this.mapWebhookToTemplate(webhookType);
       const message = await templateManager.generateMessage(clientId, templateType, extractedData);
       
-      // Enviar via WhatsApp
-      const result = await whatsappManager.sendMessage(extractedData.phone, message);
+      // Enviar via WhatsApp usando pool ou instância única
+      let result;
+      if (client.webhookPool?.enabled) {
+        // Usar pool de webhooks
+        const messageData = {
+          to: extractedData.phone,
+          text: message
+        };
+        result = await webhookPoolManager.sendMessage(clientId, messageData);
+      } else {
+        // Usar instância única (método antigo)
+        result = await whatsappManager.sendMessage(extractedData.phone, message);
+      }
       
       logger.info(`✅ Webhook processed successfully: ${clientId}/${webhookType}`);
       

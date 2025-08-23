@@ -4,7 +4,7 @@ import React, { createContext, useContext, useEffect, ReactNode } from 'react';
 import useWebSocket from '@/hooks/useWebSocket';
 
 interface RealTimeUpdate {
-  type: 'instance_status' | 'campaign_progress' | 'message_sent' | 'system_alert' | 'webhook_received';
+  type: 'instance_status' | 'campaign_progress' | 'message_sent' | 'system_alert' | 'webhook_received' | 'qrcode_generated' | 'instance_status_updated' | 'qrcode-generated' | 'instance-status-updated';
   data: any;
   timestamp: string;
 }
@@ -76,6 +76,18 @@ export const RealTimeProvider: React.FC<{ children: ReactNode }> = ({ children }
       case 'webhook_received':
         // Update webhook statistics
         console.log('🔗 Webhook received:', update.data);
+        break;
+        
+      case 'qrcode_generated':
+      case 'qrcode-generated':
+        // Handle QR code generation events
+        console.log('📱 QR Code generated for instance:', update.data?.instanceName);
+        break;
+        
+      case 'instance_status_updated':
+      case 'instance-status-updated':
+        // Handle instance status updates
+        console.log('🔄 Instance status updated:', update.data?.instanceName, update.data?.status);
         break;
         
       default:

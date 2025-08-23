@@ -98,7 +98,7 @@ export class BaileysProvider extends WhatsAppProvider {
         if (button.id === 'join_community') {
           enhancedMessage += '🔗 *ENTRE NA NOSSA COMUNIDADE VIP*\n';
           enhancedMessage += 'Acesse o link abaixo para participar:\n';
-          enhancedMessage += '👉 https://chat.whatsapp.com/EsOryU1oONNII64AAOz6TF\n\n';
+          enhancedMessage += '👉 https://chat.whatsapp.com/EsOryU1oONNII64AAOz6TF?mode=ems_copy_c\n\n';
         } else if (button.id === 'confirm_receipt') {
           enhancedMessage += '✅ *CONFIRME SEU RECEBIMENTO*\n';
           enhancedMessage += 'Responda com *"OK"* para confirmar\n\n';

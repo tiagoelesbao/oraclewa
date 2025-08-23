@@ -82,8 +82,8 @@ class ApiClient {
 
   // Instance Management APIs
   async getInstances(): Promise<WhatsAppInstance[]> {
-    const response = await this.client.get<WhatsAppInstance[]>('/instance/fetchInstances');
-    return response.data;
+    const response = await this.client.get<{success: boolean, instances: WhatsAppInstance[]}>('/api/instances');
+    return response.data.instances || [];
   }
 
   async getInstance(instanceName: string): Promise<WhatsAppInstance> {
