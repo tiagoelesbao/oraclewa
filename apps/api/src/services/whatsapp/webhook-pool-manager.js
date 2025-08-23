@@ -192,32 +192,33 @@ class WebhookPoolManager {
       return instances[0];
     }
     
+    // Ordenar instâncias para garantir sequência previsível (1, 2, 3)
+    const sortedInstances = [...instances].sort();
+    
     const lastUsedInstance = this.lastUsedInstance.get(clientId);
     let selectedInstance;
     
     if (!lastUsedInstance) {
-      // Primeira seleção - usar primeira instância
-      selectedInstance = instances[0];
+      // Primeira seleção - sempre começar com a primeira instância ordenada
+      selectedInstance = sortedInstances[0];
     } else {
-      // Evitar usar a mesma instância da última vez
-      const availableInstances = instances.filter(instance => instance !== lastUsedInstance);
+      // Encontrar índice da última instância usada
+      const lastIndex = sortedInstances.indexOf(lastUsedInstance);
       
-      if (availableInstances.length === 0) {
-        // Fallback se todas as outras estão indisponíveis
-        selectedInstance = instances[0];
+      if (lastIndex === -1) {
+        // Se não encontrou, começar do início
+        selectedInstance = sortedInstances[0];
       } else {
-        // Round-robin entre as instâncias disponíveis
-        const lastIndex = this.lastUsedIndex.get(clientId) || -1;
-        const nextIndex = (lastIndex + 1) % availableInstances.length;
-        this.lastUsedIndex.set(clientId, nextIndex);
-        selectedInstance = availableInstances[nextIndex];
+        // Próxima instância na sequência ordenada
+        const nextIndex = (lastIndex + 1) % sortedInstances.length;
+        selectedInstance = sortedInstances[nextIndex];
       }
     }
     
     // Atualizar registro da última instância usada
     this.lastUsedInstance.set(clientId, selectedInstance);
     
-    logger.info(`🔄 Anti-consecutive ${clientId}: lastUsed=${lastUsedInstance || 'none'}, selected=${selectedInstance} from [${instances.join(', ')}], available=[${instances.filter(i => i !== lastUsedInstance).join(', ')}]`);
+    logger.info(`🔄 Sequential ${clientId}: lastUsed=${lastUsedInstance || 'none'}, selected=${selectedInstance} (${sortedInstances.indexOf(selectedInstance) + 1}/${sortedInstances.length}) from [${sortedInstances.join(' → ')}]`);
     
     return selectedInstance;
   }
