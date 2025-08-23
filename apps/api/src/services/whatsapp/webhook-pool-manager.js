@@ -45,7 +45,11 @@ class WebhookPoolManager {
       };
 
       this.pools.set(clientId, config);
-      this.lastUsedIndex.set(clientId, -1);
+      
+      // Inicializar lastUsedIndex apenas se não existir
+      if (!this.lastUsedIndex.has(clientId)) {
+        this.lastUsedIndex.set(clientId, -1);
+      }
       
       // Inicializar fila de mensagens
       if (!this.messageQueue.has(clientId)) {
@@ -187,7 +191,7 @@ class WebhookPoolManager {
     const nextIndex = (lastIndex + 1) % instances.length;
     this.lastUsedIndex.set(clientId, nextIndex);
     
-    logger.info(`🔄 Round-robin ${clientId}: lastIndex=${lastIndex}, nextIndex=${nextIndex}, selected=${instances[nextIndex]}`);
+    logger.info(`🔄 Round-robin ${clientId}: lastIndex=${lastIndex}, nextIndex=${nextIndex}, selected=${instances[nextIndex]} from [${instances.join(', ')}]`);
     
     return instances[nextIndex];
   }
