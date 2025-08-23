@@ -345,8 +345,23 @@ class WebhookPoolManager {
     const evolutionUrl = process.env.EVOLUTION_API_URL || 'http://128.140.7.154:8080';
     const evolutionApiKey = process.env.EVOLUTION_API_KEY || 'Imperio2024@EvolutionSecure';
     
+    // Limpar e formatar número brasileiro
+    let cleanNumber = messageData.to.replace(/\D/g, '');
+    
+    // Adicionar código do país se necessário
+    if (!cleanNumber.startsWith('55')) {
+      cleanNumber = '55' + cleanNumber;
+    }
+    
+    // Validar tamanho (celular brasileiro: 13 dígitos com código país)
+    if (cleanNumber.length < 12 || cleanNumber.length > 13) {
+      throw new Error(`Número inválido: ${messageData.to} (formatado: ${cleanNumber})`);
+    }
+    
+    logger.info(`📱 Sending to ${cleanNumber} via ${instanceName}`);
+    
     const response = await axios.post(`${evolutionUrl}/message/sendText/${instanceName}`, {
-      number: messageData.to,
+      number: cleanNumber,
       text: messageData.text,
       delay: 1000
     }, {
