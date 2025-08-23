@@ -3,7 +3,7 @@ import { getRedisClient } from '../redis/client.js';
 
 export class WhatsAppWarmupManager {
   constructor() {
-    this.redis = process.env.SKIP_DB !== 'true' ? getRedisClient() : null;
+    this.redis = process.env.SKIP_DB !== 'true' && process.env.REDIS_URL ? getRedisClient() : null;
     
     // Fallback em memória quando Redis não disponível
     this.inMemoryCounters = {
