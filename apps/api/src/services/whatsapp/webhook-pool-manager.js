@@ -5,6 +5,7 @@
 
 import logger from '../../utils/logger.js';
 import axios from 'axios';
+import http from 'http';
 import { io } from '../../index.js';
 
 class WebhookPoolManager {
@@ -392,35 +393,58 @@ class WebhookPoolManager {
     const evolutionApiKey = process.env.EVOLUTION_API_KEY || 'Imperio2024@EvolutionSecure';
     
     logger.info(`📱 Sending to ${messageData.to} via ${instanceName}`);
+    logger.debug(`📝 Message text: "${messageData.text}"`);
     
-    // Detectar se mensagem contém link de recuperação
-    const hasRecoveryLink = messageData.text.includes('imperiopremioss.com/campanha');
-    
-    if (hasRecoveryLink) {
-      // Tentar enviar com botões primeiro (melhor para iOS)
+    // USAR MÉTODO DIRETO QUE FUNCIONA - HTTP NATIVO COM CHARSET
+    return new Promise((resolve, reject) => {
       try {
-        return await this.sendWithButtons(evolutionUrl, evolutionApiKey, instanceName, messageData);
-      } catch (buttonError) {
-        logger.warn(`⚠️ Buttons failed, falling back to simple text for ${instanceName}:`, buttonError.message);
-        // Fallback para mensagem simples com URL encurtada
-        return await this.sendWithOptimizedLink(evolutionUrl, evolutionApiKey, instanceName, messageData);
+        const payload = JSON.stringify({
+          number: messageData.to,
+          text: messageData.text
+        });
+        
+        const url = new URL(`/message/sendText/${instanceName}`, evolutionUrl);
+        
+        const requestOptions = {
+          hostname: url.hostname,
+          port: url.port,
+          path: url.pathname,
+          method: 'POST',
+          headers: {
+            'apikey': evolutionApiKey,
+            'Content-Type': 'application/json; charset=utf-8',
+            'Content-Length': Buffer.byteLength(payload, 'utf8')
+          },
+          timeout: 10000
+        };
+        
+        const req = http.request(requestOptions, (res) => {
+          let data = '';
+          res.on('data', chunk => data += chunk);
+          res.on('end', () => {
+            logger.info(`✅ WhatsApp sent successfully: ${res.statusCode}`);
+            resolve({ success: true, status: res.statusCode, data });
+          });
+        });
+        
+        req.on('error', (error) => {
+          logger.error(`❌ WhatsApp send failed: ${error.message}`);
+          reject(error);
+        });
+        
+        req.on('timeout', () => {
+          req.destroy();
+          reject(new Error('Request timeout'));
+        });
+        
+        req.write(payload);
+        req.end();
+        
+      } catch (error) {
+        logger.error(`❌ WhatsApp function error: ${error.message}`);
+        reject(error);
       }
-    }
-    
-    // Mensagem normal sem link
-    const response = await axios.post(`${evolutionUrl}/message/sendText/${instanceName}`, {
-      number: messageData.to,
-      text: messageData.text,
-      delay: 1000
-    }, {
-      headers: {
-        'apikey': evolutionApiKey,
-        'Content-Type': 'application/json'
-      },
-      timeout: 30000
     });
-
-    return response.data;
   }
 
   async sendWithButtons(evolutionUrl, evolutionApiKey, instanceName, messageData) {
