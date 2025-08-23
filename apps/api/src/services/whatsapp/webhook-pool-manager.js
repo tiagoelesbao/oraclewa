@@ -13,6 +13,7 @@ class WebhookPoolManager {
     this.healthCache = new Map(); // instanceName -> health status
     this.messageQueue = new Map(); // clientId -> message queue
     this.lastUsedIndex = new Map(); // clientId -> last used instance index
+    this.lastUsedInstance = new Map(); // clientId -> last used instance name (anti-consecutive)
     
     // Configurações
     this.healthCheckInterval = 30000; // 30 segundos
@@ -187,13 +188,38 @@ class WebhookPoolManager {
    * Estratégias de seleção de instância
    */
   selectRoundRobin(clientId, instances) {
-    const lastIndex = this.lastUsedIndex.get(clientId) || -1;
-    const nextIndex = (lastIndex + 1) % instances.length;
-    this.lastUsedIndex.set(clientId, nextIndex);
+    if (instances.length === 1) {
+      return instances[0];
+    }
     
-    logger.info(`🔄 Round-robin ${clientId}: lastIndex=${lastIndex}, nextIndex=${nextIndex}, selected=${instances[nextIndex]} from [${instances.join(', ')}]`);
+    const lastUsedInstance = this.lastUsedInstance.get(clientId);
+    let selectedInstance;
     
-    return instances[nextIndex];
+    if (!lastUsedInstance) {
+      // Primeira seleção - usar primeira instância
+      selectedInstance = instances[0];
+    } else {
+      // Evitar usar a mesma instância da última vez
+      const availableInstances = instances.filter(instance => instance !== lastUsedInstance);
+      
+      if (availableInstances.length === 0) {
+        // Fallback se todas as outras estão indisponíveis
+        selectedInstance = instances[0];
+      } else {
+        // Round-robin entre as instâncias disponíveis
+        const lastIndex = this.lastUsedIndex.get(clientId) || -1;
+        const nextIndex = (lastIndex + 1) % availableInstances.length;
+        this.lastUsedIndex.set(clientId, nextIndex);
+        selectedInstance = availableInstances[nextIndex];
+      }
+    }
+    
+    // Atualizar registro da última instância usada
+    this.lastUsedInstance.set(clientId, selectedInstance);
+    
+    logger.info(`🔄 Anti-consecutive ${clientId}: lastUsed=${lastUsedInstance || 'none'}, selected=${selectedInstance} from [${instances.join(', ')}], available=[${instances.filter(i => i !== lastUsedInstance).join(', ')}]`);
+    
+    return selectedInstance;
   }
 
   selectRandom(instances) {
