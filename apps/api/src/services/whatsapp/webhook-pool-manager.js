@@ -88,10 +88,10 @@ class WebhookPoolManager {
       }
     }
     
-    // Se nenhuma instância conectada, usar fallback
+    // Se nenhuma instância conectada, lançar erro ao invés de usar fallback
     if (connectedInstances.length === 0) {
-      logger.warn(`⚠️ No healthy instances found, using fallback: ${allInstances[0]}`);
-      return allInstances[0];
+      logger.error(`❌ No healthy instances found for ${clientId}. All instances are disconnected.`);
+      throw new Error('No healthy instances available. All WhatsApp instances are disconnected.');
     }
     
     // Round-robin apenas entre instâncias conectadas
@@ -278,13 +278,20 @@ class WebhookPoolManager {
         timeout: 10000
       });
 
-      const isConnected = response.data?.instance?.state === 'open';
+      // Verificar múltiplas condições para determinar saúde
+      const instanceState = response.data?.instance?.state;
+      const isConnected = instanceState === 'open' || instanceState === 'connected';
+      const isAvailable = response.data?.instance?.status !== 'disconnected' && 
+                          response.data?.instance?.status !== 'offline';
+      
       const health = {
-        status: isConnected ? 'healthy' : 'unhealthy',
-        state: response.data?.instance?.state || 'unknown',
+        status: (isConnected && isAvailable) ? 'healthy' : 'unhealthy',
+        state: instanceState || 'unknown',
+        connectionStatus: response.data?.instance?.status || 'unknown',
         lastCheck: new Date().toISOString(),
-        score: isConnected ? 100 : 0,
-        latency: response.headers['x-response-time'] || 0
+        score: (isConnected && isAvailable) ? 100 : 0,
+        latency: response.headers['x-response-time'] || 0,
+        details: response.data?.instance || {}
       };
 
       this.healthCache.set(instanceName, health);
@@ -430,13 +437,23 @@ class WebhookPoolManager {
           let data = '';
           res.on('data', chunk => data += chunk);
           res.on('end', () => {
-            logger.info(`✅ WhatsApp sent successfully: ${res.statusCode}`);
-            resolve({ success: true, status: res.statusCode, data });
+            // Verificar se realmente foi sucesso
+            if (res.statusCode >= 200 && res.statusCode < 300) {
+              logger.info(`✅ WhatsApp sent successfully: ${res.statusCode}`);
+              resolve({ success: true, status: res.statusCode, data });
+            } else {
+              logger.error(`❌ WhatsApp send failed with status: ${res.statusCode}`);
+              const error = new Error(`WhatsApp API returned status ${res.statusCode}: ${data}`);
+              error.instanceName = instanceName;
+              error.statusCode = res.statusCode;
+              reject(error);
+            }
           });
         });
         
         req.on('error', (error) => {
           logger.error(`❌ WhatsApp send failed: ${error.message}`);
+          error.instanceName = instanceName;
           reject(error);
         });
         

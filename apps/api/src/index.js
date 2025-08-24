@@ -14,11 +14,15 @@ import templateManager from './core/template-manager.js';
 import scalableWebhookHandler from './core/webhook-handler.js';
 import hetznerManager from './core/hetzner-manager.js';
 import webhookPoolManager from './services/whatsapp/webhook-pool-manager.js';
+import autoReconnectService from './services/whatsapp/auto-reconnect.js';
 import { getPendingWebhookCount } from './services/queue/manager.js';
 
 // Chip Maturation Module
 import chipMaturationModule from './modules/chip-maturation/index.js';
 import chipMaturationRoutes from './modules/chip-maturation/api/chip-maturation-routes.js';
+
+// Monitoring Routes
+import monitoringRoutes from './routes/monitoring-routes.js';
 
 // Carregar configuração do ambiente
 dotenv.config();
@@ -261,6 +265,9 @@ app.get('/api/instances', async (req, res) => {
 
 // Chip Maturation API Routes
 app.use('/api/chip-maturation', chipMaturationRoutes);
+
+// Monitoring Routes
+app.use('/api/monitoring', monitoringRoutes);
 
 // Webhook escalável - Rota principal para todos os clientes
 app.post('/webhook/:clientId/:type', async (req, res) => {
@@ -1769,6 +1776,10 @@ async function initializeScalableSystem() {
     }
 
     logger.info('✅ All core managers initialized successfully');
+    
+    // Start auto-reconnect monitoring
+    autoReconnectService.startMonitoring(webhookPoolManager);
+    logger.info('🔄 Auto-reconnect service started');
 
     // 4. Start server with WebSocket support
     server.listen(PORT, '0.0.0.0', () => {

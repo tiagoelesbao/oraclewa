@@ -130,7 +130,7 @@ class TemplateManager {
       }
       
       if (template.generateOrderExpiredMessage && templateType.includes('expired')) {
-        return template.generateOrderExpiredMessage(data.customerName, data.productName, data.total);
+        return template.generateOrderExpiredMessage(data.customerName, data.productName, data.total, data.params);
       }
       
       // Função genérica
