@@ -10,7 +10,7 @@
     "imperio-webhook-1": {
       "baselineCount": 61674,
       "resetAt": "2025-08-23T11:48:33.189Z",
-      "lastKnownCount": 81063
+      "lastKnownCount": 112781
     },
     "imperio-webhook-3": {
       "baselineCount": 63062,
@@ -25,10 +25,10 @@
   },
   "monitoring": {
     "enabled": true,
-    "lastCheck": "2025-08-24T15:36:12.116Z",
+    "lastCheck": "2025-08-25T13:59:19.452Z",
     "incrementalCount": {
       "imperio-webhook-2": 12960,
-      "imperio-webhook-1": 19389,
+      "imperio-webhook-1": 51107,
       "imperio-webhook-3": 37328,
       "imperio-webhook-4": 0
     }
