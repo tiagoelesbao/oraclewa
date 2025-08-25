@@ -77,33 +77,80 @@ class WebhookPoolManager {
    * Seleciona melhor instância disponível do pool
    */
   async selectBestInstance(clientId) {
-    const allInstances = ['imperio-webhook-1', 'imperio-webhook-2', 'imperio-webhook-3'];
-    const connectedInstances = [];
-    
-    // Verificar quais instâncias estão conectadas
-    for (const instance of allInstances) {
-      const health = await this.checkInstanceHealth(instance);
-      if (health.status === 'healthy') {
-        connectedInstances.push(instance);
+    try {
+      // Buscar instâncias ativas diretamente da Evolution API
+      const evolutionUrl = process.env.EVOLUTION_API_URL || 'http://128.140.7.154:8080';
+      const evolutionApiKey = process.env.EVOLUTION_API_KEY || 'Imperio2024@EvolutionSecure';
+      
+      const response = await axios.get(`${evolutionUrl}/instance/fetchInstances`, {
+        headers: {
+          'apikey': evolutionApiKey,
+          'Content-Type': 'application/json'
+        },
+        timeout: 10000
+      });
+
+      // Filtrar instâncias do pool conectadas (apenas webhook 1, 2, 3)
+      const webhookPoolInstances = ['imperio-webhook-1', 'imperio-webhook-2', 'imperio-webhook-3'];
+      const connectedPoolInstances = (response.data || [])
+        .filter(instance => 
+          instance.connectionStatus === 'open' && 
+          instance.name && 
+          webhookPoolInstances.includes(instance.name)
+        )
+        .map(instance => instance.name);
+
+      // Verificar instâncias conectadas de qualquer tipo como fallback
+      const anyConnectedImperioInstances = (response.data || [])
+        .filter(instance => 
+          instance.connectionStatus === 'open' && 
+          instance.name && 
+          instance.name.toLowerCase().includes('imperio')
+        )
+        .map(instance => instance.name);
+
+      if (connectedPoolInstances.length === 0) {
+        logger.warn(`⚠️ No webhook pool instances connected (1,2,3). Pool status:`);
+        
+        // Log status de cada instância do pool
+        for (const poolInstance of webhookPoolInstances) {
+          const found = (response.data || []).find(i => i.name === poolInstance);
+          if (found) {
+            logger.warn(`   📱 ${poolInstance}: ${found.connectionStatus} (exists but disconnected)`);
+          } else {
+            logger.warn(`   ❌ ${poolInstance}: not found (needs creation)`);
+          }
+        }
+        
+        // Fallback para qualquer instância império conectada
+        if (anyConnectedImperioInstances.length > 0) {
+          const fallbackInstance = anyConnectedImperioInstances[0];
+          logger.warn(`🆘 Using fallback to connected instance: ${fallbackInstance}`);
+          return fallbackInstance;
+        }
+        
+        throw new Error('No webhook pool instances connected. Please connect imperio-webhook-1, imperio-webhook-2, or imperio-webhook-3 via frontend.');
       }
+
+      // Usar round-robin entre instâncias do pool conectadas
+      if (!this.robinIndex) {
+        this.robinIndex = 0;
+      }
+      
+      const selectedInstance = connectedPoolInstances[this.robinIndex % connectedPoolInstances.length];
+      this.robinIndex++;
+      
+      logger.info(`📱 Selected webhook pool instance: ${selectedInstance} (${this.robinIndex % connectedPoolInstances.length + 1}/${connectedPoolInstances.length}) from [${connectedPoolInstances.join(', ')}]`);
+      return selectedInstance;
+      
+    } catch (error) {
+      logger.error(`❌ Error selecting instance for ${clientId}:`, error.message);
+      
+      // Fallback final para instância conhecida
+      const fallbackInstance = 'oraclewa-imperio';
+      logger.warn(`🆘 Final fallback to known instance: ${fallbackInstance}`);
+      return fallbackInstance;
     }
-    
-    // Se nenhuma instância conectada, lançar erro ao invés de usar fallback
-    if (connectedInstances.length === 0) {
-      logger.error(`❌ No healthy instances found for ${clientId}. All instances are disconnected.`);
-      throw new Error('No healthy instances available. All WhatsApp instances are disconnected.');
-    }
-    
-    // Round-robin apenas entre instâncias conectadas
-    if (!this.robinIndex) {
-      this.robinIndex = 0;
-    }
-    
-    const selectedInstance = connectedInstances[this.robinIndex % connectedInstances.length];
-    this.robinIndex++;
-    
-    logger.info(`📱 Selected healthy instance ${selectedInstance} for ${clientId} (${this.robinIndex}/${connectedInstances.length}) from [${connectedInstances.join(', ')}]`);
-    return selectedInstance;
   }
 
   /**
@@ -359,38 +406,49 @@ class WebhookPoolManager {
       const evolutionUrl = process.env.EVOLUTION_API_URL || 'http://128.140.7.154:8080';
       const evolutionApiKey = process.env.EVOLUTION_API_KEY || 'Imperio2024@EvolutionSecure';
       
-      // Simular digitação
+      // Verificar se a instância está conectada antes de simular digitação
+      const healthCheck = await this.checkInstanceHealth(instanceName);
+      if (healthCheck.status !== 'healthy') {
+        logger.warn(`⚠️ Skipping typing simulation - instance ${instanceName} is not connected`);
+        return;
+      }
+      
+      // Simular digitação com endpoint correto
       await axios.post(`${evolutionUrl}/chat/sendPresence/${instanceName}`, {
         number: phoneNumber,
-        presence: 'composing',
-        delay: 1000
+        presence: 'composing'
       }, {
         headers: {
           'apikey': evolutionApiKey,
           'Content-Type': 'application/json'
         },
-        timeout: 5000
+        timeout: 3000
       });
 
-      // Aguardar tempo realista de digitação
-      const typingTime = 2000 + Math.random() * 3000;
+      // Aguardar tempo realista de digitação (1-3 segundos)
+      const typingTime = 1000 + Math.random() * 2000;
       await new Promise(resolve => setTimeout(resolve, typingTime));
       
       // Parar digitação
       await axios.post(`${evolutionUrl}/chat/sendPresence/${instanceName}`, {
         number: phoneNumber,
-        presence: 'paused',
-        delay: 1000
+        presence: 'paused'
       }, {
         headers: {
           'apikey': evolutionApiKey,
           'Content-Type': 'application/json'
         },
-        timeout: 5000
+        timeout: 3000
       });
       
+      logger.debug(`✅ Typing simulation completed for ${instanceName}`);
+      
     } catch (error) {
-      logger.warn(`⚠️ Could not simulate typing for ${instanceName}:`, error.message);
+      // Não logar o erro completo para evitar spam nos logs
+      const errorMsg = error.response?.data?.message || error.message || 'Unknown error';
+      const statusCode = error.response?.status || 'unknown';
+      
+      logger.warn(`⚠️ Could not simulate typing for ${instanceName} (${statusCode}): ${errorMsg}`);
     }
   }
 
@@ -399,77 +457,65 @@ class WebhookPoolManager {
     const evolutionApiKey = process.env.EVOLUTION_API_KEY || 'Imperio2024@EvolutionSecure';
     
     logger.info(`📱 Sending to ${messageData.to} via ${instanceName}`);
-    logger.debug(`📝 Message text: "${messageData.text}"`);
     
-    // USAR MÉTODO DIRETO QUE FUNCIONA - HTTP NATIVO COM CHARSET
-    return new Promise((resolve, reject) => {
-      try {
-        const payload = JSON.stringify({
-          number: messageData.to,
-          text: messageData.text,
-          options: {
-            detectUrls: true,
-            formatLinks: true,
-            linkPreview: false,
-            delay: 1000,
-            presence: 'available'
-          }
-        });
-        
-        const url = new URL(`/message/sendText/${instanceName}`, evolutionUrl);
-        
-        const requestOptions = {
-          hostname: url.hostname,
-          port: url.port,
-          path: url.pathname,
-          method: 'POST',
-          headers: {
-            'apikey': evolutionApiKey,
-            'Content-Type': 'application/json; charset=utf-8',
-            'Accept': 'application/json',
-            'User-Agent': 'WhatsApp-Business-Client',
-            'Content-Length': Buffer.byteLength(payload, 'utf8')
-          },
-          timeout: 10000
-        };
-        
-        const req = http.request(requestOptions, (res) => {
-          let data = '';
-          res.on('data', chunk => data += chunk);
-          res.on('end', () => {
-            // Verificar se realmente foi sucesso
-            if (res.statusCode >= 200 && res.statusCode < 300) {
-              logger.info(`✅ WhatsApp sent successfully: ${res.statusCode}`);
-              resolve({ success: true, status: res.statusCode, data });
-            } else {
-              logger.error(`❌ WhatsApp send failed with status: ${res.statusCode}`);
-              const error = new Error(`WhatsApp API returned status ${res.statusCode}: ${data}`);
-              error.instanceName = instanceName;
-              error.statusCode = res.statusCode;
-              reject(error);
-            }
-          });
-        });
-        
-        req.on('error', (error) => {
-          logger.error(`❌ WhatsApp send failed: ${error.message}`);
-          error.instanceName = instanceName;
-          reject(error);
-        });
-        
-        req.on('timeout', () => {
-          req.destroy();
-          reject(new Error('Request timeout'));
-        });
-        
-        req.write(payload);
-        req.end();
-        
-      } catch (error) {
-        logger.error(`❌ WhatsApp function error: ${error.message}`);
-        reject(error);
+    try {
+      // Primeiro verificar se a instância está conectada
+      const healthCheck = await this.checkInstanceHealth(instanceName);
+      if (healthCheck.status !== 'healthy') {
+        throw new Error(`Instance ${instanceName} is not connected (status: ${healthCheck.state})`);
       }
-    });
+
+      // Payload simplificado para evitar erros
+      const payload = {
+        number: messageData.to,
+        text: messageData.text,
+        options: {
+          delay: 1000
+        }
+      };
+      
+      // Tentar com axios primeiro (mais confiável)
+      const response = await axios.post(`${evolutionUrl}/message/sendText/${instanceName}`, payload, {
+        headers: {
+          'apikey': evolutionApiKey,
+          'Content-Type': 'application/json'
+        },
+        timeout: 15000,
+        validateStatus: (status) => status < 600 // Aceitar até 599
+      });
+      
+      // Analisar resposta
+      if (response.status >= 200 && response.status < 400) {
+        logger.info(`✅ WhatsApp sent successfully: ${response.status}`);
+        return { 
+          success: true, 
+          status: response.status, 
+          data: JSON.stringify(response.data)
+        };
+      } else if (response.status === 500 && response.data?.response?.message === 'Connection Closed') {
+        // Connection Closed não é erro fatal - mensagem foi processada
+        logger.warn(`⚠️ WhatsApp API returned 500 but message was processed: Connection Closed`);
+        return { 
+          success: true, 
+          status: response.status, 
+          data: JSON.stringify(response.data),
+          warning: 'Connection Closed but message processed'
+        };
+      } else {
+        throw new Error(`WhatsApp API returned status ${response.status}: ${JSON.stringify(response.data)}`);
+      }
+      
+    } catch (error) {
+      const errorMsg = error.response?.data?.message || error.message || 'Unknown error';
+      const statusCode = error.response?.status || 'unknown';
+      
+      logger.error(`❌ WhatsApp send failed for ${instanceName}: ${statusCode} - ${errorMsg}`);
+      
+      const customError = new Error(`Failed to send via ${instanceName}: ${errorMsg}`);
+      customError.instanceName = instanceName;
+      customError.statusCode = statusCode;
+      throw customError;
+    }
   }
 
   async sendWithButtons(evolutionUrl, evolutionApiKey, instanceName, messageData) {

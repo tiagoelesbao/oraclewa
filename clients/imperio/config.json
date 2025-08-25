@@ -77,8 +77,7 @@
     "instances": [
       "imperio-webhook-1",
       "imperio-webhook-2", 
-      "imperio-webhook-3",
-      "imperio-webhook-4"
+      "imperio-webhook-3"
     ],
     "antiban": {
       "enabled": true,
@@ -113,9 +112,9 @@
     "imperio-webhook-4": {
       "type": "webhook",
       "provider": "evolution-baileys",
-      "status": "pending", 
-      "phone": "pending",
-      "description": "Webhook Pool Instance 4/4 - AGUARDANDO CONEXÃO"
+      "status": "disabled", 
+      "phone": "disabled",
+      "description": "Webhook Pool Instance 4/4 - DESATIVADA TEMPORARIAMENTE"
     },
     "imperio-zapi": {
       "type": "recovery",
