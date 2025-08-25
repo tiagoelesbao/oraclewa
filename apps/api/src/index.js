@@ -1725,14 +1725,13 @@ app.get('/api/webhook-pools', async (req, res) => {
         instances: [
           'imperio-webhook-1',
           'imperio-webhook-2', 
-          'imperio-webhook-3',
           'imperio-webhook-4'
         ],
         status: 'active',
         healthStatus: {
-          total: 4,
+          total: 3,
           healthy: 0,
-          unhealthy: 4
+          unhealthy: 3
         },
         messageQueue: 0
       }

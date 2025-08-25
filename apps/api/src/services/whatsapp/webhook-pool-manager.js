@@ -90,8 +90,8 @@ class WebhookPoolManager {
         timeout: 10000
       });
 
-      // Filtrar instâncias do pool conectadas (apenas webhook 1, 2, 3)
-      const webhookPoolInstances = ['imperio-webhook-1', 'imperio-webhook-2', 'imperio-webhook-3'];
+      // Filtrar instâncias do pool conectadas (apenas webhook 1, 2, 4)
+      const webhookPoolInstances = ['imperio-webhook-1', 'imperio-webhook-2', 'imperio-webhook-4'];
       const connectedPoolInstances = (response.data || [])
         .filter(instance => 
           instance.connectionStatus === 'open' && 
@@ -129,7 +129,7 @@ class WebhookPoolManager {
           return fallbackInstance;
         }
         
-        throw new Error('No webhook pool instances connected. Please connect imperio-webhook-1, imperio-webhook-2, or imperio-webhook-3 via frontend.');
+        throw new Error('No webhook pool instances connected. Please connect imperio-webhook-1, imperio-webhook-2, or imperio-webhook-4 via frontend.');
       }
 
       // Usar round-robin entre instâncias do pool conectadas
@@ -231,11 +231,10 @@ class WebhookPoolManager {
       return instances[0];
     }
     
-    // Garantir sequência fixa: imperio-webhook-1 → 2 → 3 → 4 → volta ao 1
+    // Garantir sequência fixa: imperio-webhook-1 → 2 → 4 → volta ao 1
     const fixedOrder = [
       'imperio-webhook-1',
       'imperio-webhook-2', 
-      'imperio-webhook-3',
       'imperio-webhook-4'
     ];
     

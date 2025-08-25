@@ -52,7 +52,6 @@ class AutoReconnectService {
       const allInstances = [
         'imperio-webhook-1',
         'imperio-webhook-2',
-        'imperio-webhook-3',
         'imperio-webhook-4'
       ];
       
@@ -209,7 +208,6 @@ class AutoReconnectService {
     const allInstances = [
       'imperio-webhook-1',
       'imperio-webhook-2',
-      'imperio-webhook-3',
       'imperio-webhook-4'
     ];
     

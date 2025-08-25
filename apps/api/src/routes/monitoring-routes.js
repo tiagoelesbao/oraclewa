@@ -21,7 +21,7 @@ router.get('/status', async (req, res) => {
     const reconnectStatus = autoReconnectService.getReconnectStatus();
     
     // Verificar status de cada instância
-    const instances = ['imperio-webhook-1', 'imperio-webhook-2', 'imperio-webhook-3', 'imperio-webhook-4'];
+    const instances = ['imperio-webhook-1', 'imperio-webhook-2', 'imperio-webhook-4'];
     const instancesHealth = [];
     
     for (const instanceName of instances) {
