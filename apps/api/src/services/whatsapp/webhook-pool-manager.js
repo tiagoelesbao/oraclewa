@@ -170,6 +170,13 @@ class WebhookPoolManager {
         throw new Error(`Número inválido: ${messageData.to} (formatado: ${cleanNumber})`);
       }
       
+      // Validar se número existe no WhatsApp antes de enviar
+      const numberExists = await this.validateWhatsAppNumber(instanceName, cleanNumber);
+      if (!numberExists) {
+        logger.warn(`❌ Number does not exist on WhatsApp: ${cleanNumber} (original: ${messageData.to})`);
+        throw new Error(`Number ${cleanNumber} is not registered on WhatsApp`);
+      }
+      
       // Aplicar anti-ban delay
       if (pool.antibanSettings.enabled) {
         await this.applyAntibanDelay(pool.antibanSettings);
@@ -199,7 +206,26 @@ class WebhookPoolManager {
     } catch (error) {
       logger.error(`❌ Error sending message for ${clientId} (attempt ${retryCount + 1}):`, error.message);
       
-      // Retry com outra instância se disponível
+      // Se for erro de número inválido, não fazer retry - falha definitiva
+      if (error.message.includes('not registered on WhatsApp') || 
+          error.message.includes('exists":false') ||
+          error.message.includes('Número inválido')) {
+        logger.error(`🚫 Permanent failure - invalid number: ${messageData.to}`);
+        
+        // Emitir evento de falha permanente
+        io.emit('webhook-message-failed', {
+          clientId,
+          to: messageData.to,
+          error: `Invalid WhatsApp number: ${error.message}`,
+          retries: retryCount,
+          permanent: true,
+          timestamp: new Date().toISOString()
+        });
+        
+        throw new Error(`Invalid WhatsApp number: ${error.message}`);
+      }
+      
+      // Retry com outra instância se disponível (apenas para erros temporários)
       if (retryCount < this.maxRetries) {
         logger.info(`🔄 Retrying message for ${clientId} (attempt ${retryCount + 2})`);
         
@@ -210,12 +236,13 @@ class WebhookPoolManager {
       // Marcar instância como unhealthy se erro persistir
       await this.markInstanceUnhealthy(clientId, error.instanceName);
       
-      // Emitir evento de falha
+      // Emitir evento de falha temporária
       io.emit('webhook-message-failed', {
         clientId,
         to: messageData.to,
         error: error.message,
         retries: retryCount,
+        permanent: false,
         timestamp: new Date().toISOString()
       });
       
@@ -400,6 +427,39 @@ class WebhookPoolManager {
     await new Promise(resolve => setTimeout(resolve, delay));
   }
 
+  async validateWhatsAppNumber(instanceName, phoneNumber) {
+    try {
+      const evolutionUrl = process.env.EVOLUTION_API_URL || 'http://128.140.7.154:8080';
+      const evolutionApiKey = process.env.EVOLUTION_API_KEY || 'Imperio2024@EvolutionSecure';
+      
+      // Usar endpoint específico para verificar se número existe no WhatsApp
+      const response = await axios.post(`${evolutionUrl}/chat/whatsappNumbers/${instanceName}`, {
+        numbers: [phoneNumber]
+      }, {
+        headers: {
+          'apikey': evolutionApiKey,
+          'Content-Type': 'application/json'
+        },
+        timeout: 8000
+      });
+
+      // Analisar resposta - a API retorna array com status de cada número
+      if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+        const numberStatus = response.data[0];
+        return numberStatus.exists === true;
+      }
+      
+      // Se não conseguiu validar, assumir que existe para não bloquear
+      logger.warn(`⚠️ Could not validate number ${phoneNumber}, assuming it exists`);
+      return true;
+      
+    } catch (error) {
+      // Se API de validação falhar, não bloquear o envio
+      logger.warn(`⚠️ Number validation failed for ${phoneNumber}, assuming it exists: ${error.message}`);
+      return true;
+    }
+  }
+
   async simulateTyping(instanceName, phoneNumber) {
     try {
       const evolutionUrl = process.env.EVOLUTION_API_URL || 'http://128.140.7.154:8080';
@@ -412,10 +472,11 @@ class WebhookPoolManager {
         return;
       }
       
-      // Simular digitação com endpoint correto
+      // Simular digitação com endpoint correto - usar formato mais simples
       await axios.post(`${evolutionUrl}/chat/sendPresence/${instanceName}`, {
         number: phoneNumber,
-        presence: 'composing'
+        presence: 'composing',
+        delay: 1000
       }, {
         headers: {
           'apikey': evolutionApiKey,
@@ -424,30 +485,15 @@ class WebhookPoolManager {
         timeout: 3000
       });
 
-      // Aguardar tempo realista de digitação (1-3 segundos)
-      const typingTime = 1000 + Math.random() * 2000;
+      // Aguardar tempo realista de digitação (1-2 segundos)
+      const typingTime = 1000 + Math.random() * 1000;
       await new Promise(resolve => setTimeout(resolve, typingTime));
-      
-      // Parar digitação
-      await axios.post(`${evolutionUrl}/chat/sendPresence/${instanceName}`, {
-        number: phoneNumber,
-        presence: 'paused'
-      }, {
-        headers: {
-          'apikey': evolutionApiKey,
-          'Content-Type': 'application/json'
-        },
-        timeout: 3000
-      });
       
       logger.debug(`✅ Typing simulation completed for ${instanceName}`);
       
     } catch (error) {
-      // Não logar o erro completo para evitar spam nos logs
-      const errorMsg = error.response?.data?.message || error.message || 'Unknown error';
-      const statusCode = error.response?.status || 'unknown';
-      
-      logger.warn(`⚠️ Could not simulate typing for ${instanceName} (${statusCode}): ${errorMsg}`);
+      // Reduzir verbosity dos erros de digitação - não são críticos
+      logger.debug(`⚠️ Typing simulation skipped for ${instanceName}: ${error.response?.status || 'unknown'}`);
     }
   }
 
