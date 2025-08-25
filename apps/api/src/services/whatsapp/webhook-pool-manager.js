@@ -465,14 +465,7 @@ class WebhookPoolManager {
       const evolutionUrl = process.env.EVOLUTION_API_URL || 'http://128.140.7.154:8080';
       const evolutionApiKey = process.env.EVOLUTION_API_KEY || 'Imperio2024@EvolutionSecure';
       
-      // Verificar se a instância está conectada antes de simular digitação
-      const healthCheck = await this.checkInstanceHealth(instanceName);
-      if (healthCheck.status !== 'healthy') {
-        logger.warn(`⚠️ Skipping typing simulation - instance ${instanceName} is not connected`);
-        return;
-      }
-      
-      // Simular digitação com endpoint correto - usar formato mais simples
+      // Simular digitação com endpoint correto e formato que funcionava
       await axios.post(`${evolutionUrl}/chat/sendPresence/${instanceName}`, {
         number: phoneNumber,
         presence: 'composing',
@@ -482,18 +475,32 @@ class WebhookPoolManager {
           'apikey': evolutionApiKey,
           'Content-Type': 'application/json'
         },
-        timeout: 3000
+        timeout: 5000
       });
 
-      // Aguardar tempo realista de digitação (1-2 segundos)
-      const typingTime = 1000 + Math.random() * 1000;
+      // Aguardar tempo realista de digitação (2-4 segundos)
+      const typingTime = 2000 + Math.random() * 2000;
       await new Promise(resolve => setTimeout(resolve, typingTime));
+      
+      // Parar digitação
+      await axios.post(`${evolutionUrl}/chat/sendPresence/${instanceName}`, {
+        number: phoneNumber,
+        presence: 'paused',
+        delay: 1000
+      }, {
+        headers: {
+          'apikey': evolutionApiKey,
+          'Content-Type': 'application/json'
+        },
+        timeout: 5000
+      });
       
       logger.debug(`✅ Typing simulation completed for ${instanceName}`);
       
     } catch (error) {
-      // Reduzir verbosity dos erros de digitação - não são críticos
-      logger.debug(`⚠️ Typing simulation skipped for ${instanceName}: ${error.response?.status || 'unknown'}`);
+      // Silenciar erros de digitação - não são críticos
+      // Usar debug ao invés de warn para não poluir logs
+      logger.debug(`⚠️ Typing simulation skipped: ${error.response?.status || error.message}`);
     }
   }
 
