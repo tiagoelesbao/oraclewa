@@ -13,9 +13,7 @@ const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || 'Imperio2024@Evolutio
 
 const WEBHOOK_INSTANCES = [
   'imperio-webhook-1',
-  'imperio-webhook-2', 
-  'imperio-webhook-3',
-  'imperio-webhook-4'
+  'imperio-webhook-2'
 ];
 
 class WebhookPoolPrep {

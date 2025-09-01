@@ -77,7 +77,7 @@
     "instances": [
       "imperio-webhook-1",
       "imperio-webhook-2", 
-      "imperio-webhook-4"
+      "imperio-webhook-3"
     ],
     "antiban": {
       "enabled": true,
@@ -98,16 +98,16 @@
     "imperio-webhook-2": {
       "type": "webhook", 
       "provider": "evolution-baileys",
-      "status": "connected",
-      "phone": "5511963751439",
-      "description": "Webhook Pool Instance 2/3 - CONECTADA E ATIVA"
+      "status": "pending",
+      "phone": "pending",
+      "description": "Webhook Pool Instance 2/3 - AGUARDANDO RECONEXÃO"
     },
-    "imperio-webhook-4": {
+    "imperio-webhook-3": {
       "type": "webhook",
       "provider": "evolution-baileys",
-      "status": "connected", 
-      "phone": "5511974220162",
-      "description": "Webhook Pool Instance 3/3 - CONECTADA E ATIVA"
+      "status": "pending", 
+      "phone": "pending",
+      "description": "Webhook Pool Instance 3/3 - AGUARDANDO RECONEXÃO"
     },
     "imperio-zapi": {
       "type": "recovery",

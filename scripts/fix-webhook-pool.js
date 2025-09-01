@@ -14,8 +14,7 @@ const evolutionApiKey = process.env.EVOLUTION_API_KEY || 'Imperio2024@EvolutionS
 const webhookInstances = [
   'imperio-webhook-1',
   'imperio-webhook-2', 
-  'imperio-webhook-3',
-  'imperio-webhook-4'
+  'imperio-webhook-3'
 ];
 
 async function checkInstanceExists(instanceName) {
